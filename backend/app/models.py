@@ -62,6 +62,7 @@ class Task(Base):
     subsection_id = Column(
         Integer, ForeignKey("subsections.id", ondelete="SET NULL"), nullable=True
     )
+    priority = Column(Integer, default=0)
     title = Column(String, nullable=False)
     description = Column(Text, nullable=True)
     status = Column(Enum(TaskStatus), default=TaskStatus.todo, nullable=False)
