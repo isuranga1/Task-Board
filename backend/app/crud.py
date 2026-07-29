@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import select
 
-from . import models, schemas
+from .import models, schemas
 
 
 # ---------- Sections ----------
