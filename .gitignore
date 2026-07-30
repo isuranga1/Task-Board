@@ -147,3 +147,5 @@ __pycache__/
 *.pyc
 
 .vscode/settings.json
+*.zip
+*.env
