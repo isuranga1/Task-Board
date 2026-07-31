@@ -3,9 +3,9 @@ import { Plus } from "lucide-react";
 import { api } from "../api/client";
 import { useTasks } from "../hooks/useTasks";
 import { SectionTabs, slugify } from "../components/sections/SectionTabs";
-import { SubsectionGroup } from "../components/sections/SubsectionGroup";
+import { SectionBoard } from "../components/sections/SectionBoard";
 import { TaskDetailModal } from "../components/board/TaskDetailModal";
-import type { Section, Task } from "../types";
+import type { Section, Subsection, Task } from "../types";
 
 export function Dashboard() {
   const [sections, setSections] = useState<Section[]>([]);
@@ -21,7 +21,7 @@ export function Dashboard() {
     loading: loadingTasks,
     error: taskError,
     refresh: refreshTasks,
-    updateTaskStatus,
+    moveTask,
     updateTask,
     createTask,
     deleteTask,
@@ -91,6 +91,33 @@ export function Dashboard() {
     });
   }
 
+  async function handleReorderSections(newOrder: Section[]) {
+    const previous = sections;
+    setSections(newOrder); // optimistic — reordering should feel instant
+    try {
+      await Promise.all(newOrder.map((s, index) => api.updateSection(s.id, { position: index })));
+    } catch (err) {
+      setSections(previous);
+      setSectionError(err instanceof Error ? err.message : "Failed to reorder sections");
+    }
+  }
+
+  async function handleReorderSubsections(newOrder: Subsection[]) {
+    if (activeSectionId === null) return;
+    const previous = sections;
+    setSections((current) =>
+      current.map((s) => (s.id === activeSectionId ? { ...s, subsections: newOrder } : s))
+    );
+    try {
+      await Promise.all(
+        newOrder.map((sub, index) => api.updateSubsection(sub.id, { position: index }))
+      );
+    } catch (err) {
+      setSections(previous);
+      setSectionError(err instanceof Error ? err.message : "Failed to reorder groups");
+    }
+  }
+
   async function handleDeleteSubsection(subsectionId: number) {
     if (activeSectionId === null) return;
     await api.deleteSubsection(subsectionId);
@@ -144,6 +171,7 @@ export function Dashboard() {
         onSelect={setActiveSectionId}
         onCreate={handleCreateSection}
         onDelete={handleDeleteSection}
+        onReorder={handleReorderSections}
       />
 
       {sections.length === 0 && (
@@ -193,27 +221,18 @@ export function Dashboard() {
       {loadingTasks ? (
         <p className="text-zinc-400">Loading tasks…</p>
       ) : (
-        activeSection &&
-        Array.from(tasksBySubsection.entries()).map(([subId, subTasks]) => {
-          // Skip rendering the "Ungrouped" bucket entirely if it's empty
-          // and there ARE named subsections — avoids a pointless empty group.
-          if (subId === null && subTasks.length === 0 && activeSection.subsections.length > 0) {
-            return null;
-          }
-          const subsection = activeSection.subsections.find((s) => s.id === subId) ?? null;
-          return (
-            <SubsectionGroup
-              key={subId ?? "ungrouped"}
-              subsection={subsection}
-              tasks={subTasks}
-              onStatusChange={updateTaskStatus}
-              onToggleSubtask={toggleSubtask}
-              onAddTask={(title) => createTask(title, subId)}
-              onOpenTask={(task) => setOpenTaskId(task.id)}
-              onDeleteGroup={handleDeleteSubsection}
-            />
-          );
-        })
+        activeSection && (
+          <SectionBoard
+            section={activeSection}
+            tasksBySubsection={tasksBySubsection}
+            onMoveTask={moveTask}
+            onToggleSubtask={toggleSubtask}
+            onAddTask={(subId, title) => createTask(title, subId)}
+            onOpenTask={(task) => setOpenTaskId(task.id)}
+            onDeleteGroup={handleDeleteSubsection}
+            onReorderSubsections={handleReorderSubsections}
+          />
+        )
       )}
 
       {openTask && (

@@ -1,12 +1,13 @@
 import { useState } from "react";
-import { Plus, ChevronDown, ChevronRight, X } from "lucide-react";
-import type { Subsection, Task, TaskStatus } from "../../types";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { Plus, ChevronDown, ChevronRight, X, GripVertical } from "lucide-react";
+import type { Subsection, Task } from "../../types";
 import { Board } from "../board/Board";
 
 interface SubsectionGroupProps {
-  subsection: Subsection | null; // null = the "ungrouped" bucket
+  subsection: Subsection | null; // null = the "General" bucket
   tasks: Task[];
-  onStatusChange: (taskId: number, status: TaskStatus) => void;
   onToggleSubtask: (taskId: number, subtaskId: number, isDone: boolean) => void;
   onAddTask: (title: string) => void;
   onOpenTask: (task: Task) => void;
@@ -16,7 +17,6 @@ interface SubsectionGroupProps {
 export function SubsectionGroup({
   subsection,
   tasks,
-  onStatusChange,
   onToggleSubtask,
   onAddTask,
   onOpenTask,
@@ -25,6 +25,20 @@ export function SubsectionGroup({
   const [collapsed, setCollapsed] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [title, setTitle] = useState("");
+
+  // The "General" bucket isn't a real subsection, so it's always called with
+  // `disabled: true` here — the hook still has to be called every render
+  // (rules of hooks), it just never activates for that instance.
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: subsection ? `group:${subsection.id}` : "group:general",
+    data: { type: "group" as const, subsectionId: subsection?.id ?? null },
+    disabled: subsection === null,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
 
   function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -46,8 +60,19 @@ export function SubsectionGroup({
   }
 
   return (
-    <div className="mb-8">
+    <div ref={setNodeRef} style={style} className={`mb-8 ${isDragging ? "opacity-40" : ""}`}>
       <div className="group flex items-center gap-2 mb-3">
+        {subsection && (
+          <button
+            type="button"
+            {...attributes}
+            {...listeners}
+            className="text-zinc-600 hover:text-zinc-300 cursor-grab active:cursor-grabbing touch-none opacity-0 group-hover:opacity-100 transition-opacity"
+            title="Drag to reorder"
+          >
+            <GripVertical size={14} />
+          </button>
+        )}
         <button
           onClick={() => setCollapsed((c) => !c)}
           className="text-zinc-500 hover:text-zinc-300 transition-colors"
@@ -100,8 +125,8 @@ export function SubsectionGroup({
 
       {!collapsed && (
         <Board
+          subsectionId={subsection?.id ?? null}
           tasks={tasks}
-          onStatusChange={onStatusChange}
           onToggleSubtask={onToggleSubtask}
           onOpenTask={onOpenTask}
         />

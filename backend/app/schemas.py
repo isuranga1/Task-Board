@@ -115,6 +115,10 @@ class TaskRead(TaskBase):
     created_at: datetime
     updated_at: datetime
     reminder_sent: bool
+    # Server-computed from status transitions (see crud.update_task) — not
+    # settable directly via TaskCreate/TaskUpdate.
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
     subtasks: list[SubtaskRead] = []
     depends_on: list[TaskSummary] = []
     blocks: list[TaskSummary] = []
@@ -148,6 +152,7 @@ class SectionBase(BaseModel):
     name: str
     slug: str
     color: str | None = None
+    position: int = 0
 
 
 class SectionCreate(SectionBase):
@@ -158,6 +163,7 @@ class SectionUpdate(BaseModel):
     name: str | None = None
     slug: str | None = None
     color: str | None = None
+    position: int | None = None
 
 
 class SectionRead(SectionBase):

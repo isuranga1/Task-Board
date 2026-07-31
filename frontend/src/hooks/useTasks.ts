@@ -2,6 +2,11 @@ import { useState, useEffect, useCallback } from "react";
 import { api } from "../api/client";
 import type { Task, TaskStatus, TaskUpdatePayload } from "../types";
 
+interface MoveTaskChanges {
+  status: TaskStatus;
+  subsection_id: number | null;
+}
+
 /**
  * Owns the task list for one section: fetching, optimistic status updates
  * (for drag-and-drop), and re-fetching on demand. Keeping this logic in a
@@ -37,18 +42,25 @@ export function useTasks(sectionId: number | null) {
   // Optimistic update: change the UI immediately, send the PATCH in the
   // background, and roll back only if the request actually fails. This is
   // what makes drag-and-drop feel instant instead of waiting on a network
-  // round trip before the card visibly moves.
-  const updateTaskStatus = useCallback(
-    async (taskId: number, status: TaskStatus) => {
+  // round trip before the card visibly moves. Covers both a same-group
+  // status change AND a drag into a different group, since both just mean
+  // "this task's status and/or subsection_id are now different."
+  const moveTask = useCallback(
+    async (taskId: number, changes: MoveTaskChanges) => {
       const previous = tasks;
       setTasks((current) =>
-        current.map((t) => (t.id === taskId ? { ...t, status } : t))
+        current.map((t) => (t.id === taskId ? { ...t, ...changes } : t))
       );
       try {
-        await api.updateTask(taskId, { status });
+        // The server computes started_at/completed_at from this status
+        // change (see backend crud.update_task) — swap in its response so
+        // the time-tracking badges pick up the real timestamp instead of
+        // staying stuck on whatever this task had before the drag.
+        const updated = await api.updateTask(taskId, changes);
+        setTasks((current) => current.map((t) => (t.id === taskId ? updated : t)));
       } catch (err) {
         setTasks(previous); // rollback
-        setError(err instanceof Error ? err.message : "Failed to update task");
+        setError(err instanceof Error ? err.message : "Failed to move task");
       }
     },
     [tasks]
@@ -132,7 +144,7 @@ export function useTasks(sectionId: number | null) {
     loading,
     error,
     refresh,
-    updateTaskStatus,
+    moveTask,
     updateTask,
     createTask,
     deleteTask,

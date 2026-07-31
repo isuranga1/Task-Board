@@ -54,10 +54,14 @@ class Section(Base):
     name = Column(String, nullable=False)          # "Jobs", "Music", "Guitar"
     slug = Column(String, unique=True, nullable=False)
     color = Column(String, nullable=True)          # hex color for UI theming
+    position = Column(Integer, default=0, nullable=False, server_default="0")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     subsections = relationship(
-        "Subsection", back_populates="section", cascade="all, delete-orphan"
+        "Subsection",
+        back_populates="section",
+        cascade="all, delete-orphan",
+        order_by="Subsection.position, Subsection.id",
     )
     tasks = relationship(
         "Task", back_populates="section", cascade="all, delete-orphan"
@@ -93,6 +97,12 @@ class Task(Base):
     due_date = Column(Date, nullable=True)
     remind_at = Column(Date, nullable=True)          # date to send a reminder email
     reminder_sent = Column(Boolean, default=False, nullable=False)
+    # Set/reset whenever the task transitions INTO "in_progress" — powers the
+    # live "time in doing" badge and, once `completed_at` is also set, the
+    # "took Xh Ym" badge on done cards. Both are nullable: a task that jumps
+    # straight from todo to done was never actively timed.
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

@@ -1,17 +1,17 @@
 import { useDroppable } from "@dnd-kit/core";
-import type { Task, TaskStatus } from "../../types";
+import type { Task } from "../../types";
 import { TaskCard } from "./TaskCard";
 
 interface ColumnProps {
-  status: TaskStatus;
+  dropId: string;
   title: string;
   tasks: Task[];
   onToggleSubtask: (taskId: number, subtaskId: number, isDone: boolean) => void;
   onOpenTask: (task: Task) => void;
 }
 
-export function Column({ status, title, tasks, onToggleSubtask, onOpenTask }: ColumnProps) {
-  const { setNodeRef, isOver } = useDroppable({ id: status });
+export function Column({ dropId, title, tasks, onToggleSubtask, onOpenTask }: ColumnProps) {
+  const { setNodeRef, isOver } = useDroppable({ id: dropId, data: { type: "column" } });
 
   return (
     <div

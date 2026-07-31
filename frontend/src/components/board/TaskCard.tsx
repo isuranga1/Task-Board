@@ -1,6 +1,7 @@
+import { useEffect, useState } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { format, differenceInCalendarDays } from "date-fns";
-import { Link2, FileText, Puzzle, Paperclip, Lock } from "lucide-react";
+import { Link2, FileText, Puzzle, Paperclip, Lock, Clock } from "lucide-react";
 import type { Task, TaskPriority } from "../../types";
 
 interface TaskCardProps {
@@ -22,6 +23,55 @@ const PRIORITY_DOT: Record<TaskPriority, string> = {
   high: "bg-orange-400",
   urgent: "bg-rose-400",
 };
+
+function formatDuration(ms: number): string {
+  const totalMinutes = Math.max(0, Math.floor(ms / 60000));
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
+// Ticks itself every 30s while a task sits in "Doing" so the elapsed time
+// stays live without anyone having to open the card.
+function ElapsedTime({ since }: { since: string }) {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => tick((n) => n + 1), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <div
+      className="mt-2 flex items-center gap-1 text-xs text-indigo-300"
+      title="Time spent in Doing"
+    >
+      <Clock size={11} />
+      {formatDuration(Date.now() - new Date(since).getTime())}
+    </div>
+  );
+}
+
+// Only renders once a task has actually been through "Doing" — a task
+// dragged straight from To Do to Done was never timed, so it stays silent
+// rather than showing a misleading 0m.
+function TimeBadge({ task }: { task: Task }) {
+  if (task.status === "in_progress" && task.started_at) {
+    return <ElapsedTime since={task.started_at} />;
+  }
+  if (task.status === "done" && task.started_at && task.completed_at) {
+    const ms = new Date(task.completed_at).getTime() - new Date(task.started_at).getTime();
+    return (
+      <div className="mt-2 flex items-center gap-1 text-xs text-zinc-500" title="Time it took">
+        <Clock size={11} />
+        {formatDuration(ms)}
+      </div>
+    );
+  }
+  return null;
+}
 
 function DueBadge({ dueDate }: { dueDate: string | null }) {
   if (!dueDate) return null;
@@ -132,6 +182,8 @@ function CardBody({
           </ul>
         </div>
       )}
+
+      <TimeBadge task={task} />
     </>
   );
 }
@@ -139,7 +191,7 @@ function CardBody({
 export function TaskCard({ task, onToggleSubtask, onOpen }: TaskCardProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: task.id,
-    data: { status: task.status },
+    data: { type: "task" as const, status: task.status },
   });
 
   return (

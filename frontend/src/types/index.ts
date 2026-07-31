@@ -57,6 +57,8 @@ export interface Task {
   due_date: string | null; // ISO date string, e.g. "2026-07-10"
   remind_at: string | null;
   reminder_sent: boolean;
+  started_at: string | null; // set when the task most recently entered "in_progress"
+  completed_at: string | null; // set when the task most recently reached "done"
   created_at: string;
   updated_at: string;
   task_metadata: TaskMetadata;
@@ -77,6 +79,7 @@ export interface Section {
   name: string;
   slug: string;
   color: string | null;
+  position: number;
   created_at: string;
   subsections: Subsection[];
 }
@@ -108,6 +111,18 @@ export interface SectionCreatePayload {
 
 export interface SubsectionCreatePayload {
   name: string;
+  position?: number;
+}
+
+export interface SectionUpdatePayload {
+  name?: string;
+  slug?: string;
+  color?: string | null;
+  position?: number;
+}
+
+export interface SubsectionUpdatePayload {
+  name?: string;
   position?: number;
 }
 

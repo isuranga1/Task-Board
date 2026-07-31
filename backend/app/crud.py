@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import select, func
-from datetime import date
+from datetime import date, datetime, timezone
 
 from . import models, schemas
 
@@ -10,7 +10,7 @@ from . import models, schemas
 def get_sections(db: Session) -> list[models.Section]:
     stmt = select(models.Section).options(
         selectinload(models.Section.subsections)
-    ).order_by(models.Section.id)
+    ).order_by(models.Section.position, models.Section.id)
     return db.execute(stmt).scalars().all()
 
 
@@ -19,7 +19,12 @@ def get_section(db: Session, section_id: int) -> models.Section | None:
 
 
 def create_section(db: Session, section: schemas.SectionCreate) -> models.Section:
-    db_section = models.Section(**section.model_dump())
+    # New sections always go at the end, regardless of whatever `position`
+    # the payload happened to carry — the UI never lets a person set it
+    # explicitly on create, only via drag-to-reorder afterwards.
+    max_position = db.execute(select(func.max(models.Section.position))).scalar()
+    data = section.model_dump(exclude={"position"})
+    db_section = models.Section(**data, position=(max_position or 0) + 1)
     db.add(db_section)
     db.commit()
     db.refresh(db_section)
@@ -53,7 +58,17 @@ def delete_section(db: Session, section_id: int) -> bool:
 def create_subsection(
     db: Session, section_id: int, subsection: schemas.SubsectionCreate
 ) -> models.Subsection:
-    db_subsection = models.Subsection(section_id=section_id, **subsection.model_dump())
+    # Same reasoning as create_section: always append to the end of this
+    # section's groups, ignoring whatever `position` the payload carried.
+    max_position = db.execute(
+        select(func.max(models.Subsection.position)).where(
+            models.Subsection.section_id == section_id
+        )
+    ).scalar()
+    data = subsection.model_dump(exclude={"position"})
+    db_subsection = models.Subsection(
+        section_id=section_id, **data, position=(max_position or 0) + 1
+    )
     db.add(db_subsection)
     db.commit()
     db.refresh(db_subsection)
@@ -114,6 +129,13 @@ def get_task(db: Session, task_id: int) -> models.Task | None:
 def create_task(db: Session, task: schemas.TaskCreate) -> models.Task:
     data = task.model_dump()
     data["task_metadata"] = data.pop("task_metadata")  # already a plain dict via model_dump
+    # Tasks are almost always created as "todo", but handle the rare case of
+    # creating one already in progress/done so the time-tracking badges have
+    # something sane to show from the start.
+    if data.get("status") == schemas.TaskStatus.in_progress:
+        data["started_at"] = datetime.now(timezone.utc)
+    elif data.get("status") == schemas.TaskStatus.done:
+        data["completed_at"] = datetime.now(timezone.utc)
     db_task = models.Task(**data)
     db.add(db_task)
     db.commit()
@@ -130,6 +152,23 @@ def update_task(
     update_data = task.model_dump(exclude_unset=True)
     if "task_metadata" in update_data and update_data["task_metadata"] is not None:
         update_data["task_metadata"] = update_data["task_metadata"]
+
+    # Time tracking: `started_at` marks the most recent time this task
+    # entered "in_progress" (re-entering restarts the clock), and
+    # `completed_at` marks when it most recently reached "done". Together
+    # they let the UI show a live "time in doing" badge and, once both are
+    # set, a "took Xh Ym" badge — without the person ever touching a timer.
+    new_status = update_data.get("status")
+    if new_status is not None and new_status != db_task.status:
+        now = datetime.now(timezone.utc)
+        if new_status == models.TaskStatus.in_progress:
+            update_data["started_at"] = now
+            update_data["completed_at"] = None
+        elif new_status == models.TaskStatus.done:
+            update_data["completed_at"] = now
+        else:
+            update_data["completed_at"] = None
+
     for key, value in update_data.items():
         setattr(db_task, key, value)
     db.commit()

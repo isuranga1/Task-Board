@@ -4,7 +4,9 @@ import type {
   Task,
   Subtask,
   SectionCreatePayload,
+  SectionUpdatePayload,
   SubsectionCreatePayload,
+  SubsectionUpdatePayload,
   TaskCreatePayload,
   TaskUpdatePayload,
   AnalyticsSummary,
@@ -36,6 +38,8 @@ export const api = {
   listSections: () => request<Section[]>("/sections/"),
   createSection: (payload: SectionCreatePayload) =>
     request<Section>("/sections/", { method: "POST", body: JSON.stringify(payload) }),
+  updateSection: (id: number, payload: SectionUpdatePayload) =>
+    request<Section>(`/sections/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
   deleteSection: (id: number) =>
     request<void>(`/sections/${id}`, { method: "DELETE" }),
 
@@ -44,6 +48,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+
+  updateSubsection: (id: number, payload: SubsectionUpdatePayload) =>
+    request<Subsection>(`/subsections/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
 
   deleteSubsection: (id: number) =>
     request<void>(`/subsections/${id}`, { method: "DELETE" }),

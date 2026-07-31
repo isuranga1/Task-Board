@@ -1,4 +1,18 @@
 import { useState } from "react";
+import {
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  horizontalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Plus, X } from "lucide-react";
 import type { Section } from "../../types";
 
@@ -8,6 +22,7 @@ interface SectionTabsProps {
   onSelect: (id: number) => void;
   onCreate: (name: string) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
+  onReorder: (sections: Section[]) => void;
 }
 
 // Turns "Job Opportunities" into "job-opportunities" — a URL/DB-friendly
@@ -21,16 +36,73 @@ function slugify(name: string) {
     .replace(/(^-|-$)/g, "");
 }
 
+function SortableTab({
+  section,
+  isActive,
+  onSelect,
+  onDelete,
+}: {
+  section: Section;
+  isActive: boolean;
+  onSelect: () => void;
+  onDelete: (e: React.MouseEvent) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: section.id,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <button
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      onClick={onSelect}
+      className={`group flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all cursor-grab active:cursor-grabbing touch-none
+        ${isDragging ? "opacity-40" : ""}
+        ${isActive ? "glass text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}
+      style={
+        isActive && section.color
+          ? { boxShadow: `0 0 0 1.5px ${section.color}55 inset`, ...style }
+          : style
+      }
+    >
+      {section.color && (
+        <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: section.color }} />
+      )}
+      {section.name}
+      {/* Only visible on hover — keeps the tab bar uncluttered until you
+          actually mean to delete something. */}
+      <span
+        role="button"
+        onClick={onDelete}
+        className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-red-300 transition-opacity"
+      >
+        <X size={12} />
+      </span>
+    </button>
+  );
+}
+
 export function SectionTabs({
   sections,
   activeSectionId,
   onSelect,
   onCreate,
   onDelete,
+  onReorder,
 }: SectionTabsProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  );
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -53,42 +125,30 @@ export function SectionTabs({
     await onDelete(section.id);
   }
 
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = sections.findIndex((s) => s.id === active.id);
+    const newIndex = sections.findIndex((s) => s.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    onReorder(arrayMove(sections, oldIndex, newIndex));
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-2 mb-6">
-      {sections.map((section) => (
-        <button
-          key={section.id}
-          onClick={() => onSelect(section.id)}
-          className={`group flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all
-            ${
-              section.id === activeSectionId
-                ? "glass text-white"
-                : "text-zinc-400 hover:text-white hover:bg-white/5"
-            }`}
-          style={
-            section.id === activeSectionId && section.color
-              ? { boxShadow: `0 0 0 1.5px ${section.color}55 inset` }
-              : undefined
-          }
-        >
-          {section.color && (
-            <span
-              className="h-1.5 w-1.5 rounded-full"
-              style={{ backgroundColor: section.color }}
+      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+        <SortableContext items={sections.map((s) => s.id)} strategy={horizontalListSortingStrategy}>
+          {sections.map((section) => (
+            <SortableTab
+              key={section.id}
+              section={section}
+              isActive={section.id === activeSectionId}
+              onSelect={() => onSelect(section.id)}
+              onDelete={(e) => handleDelete(e, section)}
             />
-          )}
-          {section.name}
-          {/* Only visible on hover — keeps the tab bar uncluttered until you
-              actually mean to delete something. */}
-          <span
-            role="button"
-            onClick={(e) => handleDelete(e, section)}
-            className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-red-300 transition-opacity"
-          >
-            <X size={12} />
-          </span>
-        </button>
-      ))}
+          ))}
+        </SortableContext>
+      </DndContext>
 
       {isAdding ? (
         <form onSubmit={handleSubmit} className="flex items-center gap-2">
