@@ -16,13 +16,13 @@ export function LinkRow({ link, onChangeLabel, onChangeUrl, onRemove }: LinkRowP
   const embed = canPreview ? getEmbedInfo(link.url) : null;
 
   return (
-    <div className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded">
-      <div className="flex gap-2 items-center p-1.5">
+    <div className="bg-white/5 border border-white/10 rounded-xl">
+      <div className="flex gap-2 items-center p-2">
         <button
           type="button"
           onClick={() => setExpanded((e) => !e)}
           disabled={!canPreview}
-          className="text-zinc-600 hover:text-zinc-300 disabled:opacity-30 disabled:hover:text-zinc-600 shrink-0"
+          className="text-zinc-500 hover:text-zinc-300 disabled:opacity-30 disabled:hover:text-zinc-500 shrink-0 transition-colors"
           title={canPreview ? "Toggle preview" : "Add a URL to preview it"}
         >
           {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -31,20 +31,20 @@ export function LinkRow({ link, onChangeLabel, onChangeUrl, onRemove }: LinkRowP
           value={link.label}
           onChange={(e) => onChangeLabel(e.target.value)}
           placeholder="Label (e.g. Demo video)"
-          className="w-28 bg-transparent text-xs text-white outline-none placeholder:text-zinc-600"
+          className="w-28 bg-transparent text-xs text-white outline-none placeholder:text-zinc-500"
         />
         <input
           value={link.url}
           onChange={(e) => onChangeUrl(e.target.value)}
           placeholder="https://..."
-          className="flex-1 bg-transparent text-xs text-white outline-none placeholder:text-zinc-600"
+          className="flex-1 bg-transparent text-xs text-white outline-none placeholder:text-zinc-500"
         />
         {canPreview && (
           <a
             href={link.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-zinc-600 hover:text-blue-400 shrink-0"
+            className="text-zinc-500 hover:text-sky-300 shrink-0 transition-colors"
             title="Open in new tab"
           >
             <ExternalLink size={13} />
@@ -53,7 +53,7 @@ export function LinkRow({ link, onChangeLabel, onChangeUrl, onRemove }: LinkRowP
         <button
           type="button"
           onClick={onRemove}
-          className="text-zinc-600 hover:text-red-400 shrink-0"
+          className="text-zinc-500 hover:text-rose-300 shrink-0 transition-colors"
         >
           <Trash2 size={13} />
         </button>
@@ -62,7 +62,7 @@ export function LinkRow({ link, onChangeLabel, onChangeUrl, onRemove }: LinkRowP
       {expanded && embed && (
         <div className="p-2 pt-0">
           {embed.kind === "youtube" || embed.kind === "vimeo" ? (
-            <div className="aspect-video w-full rounded overflow-hidden bg-black">
+            <div className="aspect-video w-full rounded-lg overflow-hidden bg-black">
               <iframe
                 src={embed.embedUrl}
                 className="w-full h-full"
@@ -73,14 +73,14 @@ export function LinkRow({ link, onChangeLabel, onChangeUrl, onRemove }: LinkRowP
             </div>
           ) : (
             <>
-              <div className="h-40 w-full rounded overflow-hidden bg-white/5 border border-[var(--color-border)]">
+              <div className="h-40 w-full rounded-lg overflow-hidden bg-white/5 border border-white/10">
                 <iframe
                   src={embed.embedUrl}
                   className="w-full h-full"
                   title={link.label || "Link preview"}
                 />
               </div>
-              <p className="text-[10px] text-zinc-600 mt-1">
+              <p className="text-[10px] text-zinc-500 mt-1">
                 If this looks blank, the site doesn't allow embedding — use the open-in-new-tab icon instead.
               </p>
             </>

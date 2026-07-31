@@ -21,10 +21,10 @@ interface TaskDetailModalProps {
 }
 
 const PRIORITY_STYLES: Record<TaskPriority, string> = {
-  low: "bg-zinc-700 text-zinc-300",
-  medium: "bg-blue-900/50 text-blue-300",
-  high: "bg-orange-900/50 text-orange-300",
-  urgent: "bg-red-900/50 text-red-300",
+  low: "bg-white/5 text-zinc-300",
+  medium: "bg-sky-400/10 text-sky-300",
+  high: "bg-orange-400/10 text-orange-300",
+  urgent: "bg-rose-400/10 text-rose-300",
 };
 
 function formatBytes(bytes: number) {
@@ -32,6 +32,11 @@ function formatBytes(bytes: number) {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+const fieldClass =
+  "w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-white/30 transition-colors";
+const rowClass =
+  "flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2";
 
 export function TaskDetailModal({
   task,
@@ -150,35 +155,38 @@ export function TaskDetailModal({
     // Backdrop — clicking outside the modal card closes it, clicking inside
     // the card itself must NOT close it, hence stopPropagation on the inner div.
     <div
-      className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl w-full max-w-lg max-h-[85vh] overflow-y-auto p-6"
+        className="glass-panel rounded-3xl w-full max-w-lg max-h-[85vh] overflow-y-auto p-6"
       >
         <div className="flex justify-between items-start mb-4">
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="bg-transparent text-lg font-semibold text-white outline-none w-full mr-4 border-b border-transparent focus:border-[var(--color-border)]"
+            className="bg-transparent text-lg font-semibold text-white outline-none w-full mr-4 border-b border-transparent focus:border-white/20"
           />
-          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300 shrink-0">
+          <button
+            onClick={onClose}
+            className="text-zinc-500 hover:text-zinc-200 shrink-0 transition-colors"
+          >
             <X size={20} />
           </button>
         </div>
 
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
-            <label className="text-xs text-zinc-500 block mb-1">Due date</label>
+            <label className="text-xs text-zinc-400 block mb-1">Due date</label>
             <DatePicker value={dueDate} onChange={setDueDate} />
           </div>
           <div>
-            <label className="text-xs text-zinc-500 block mb-1">Priority</label>
+            <label className="text-xs text-zinc-400 block mb-1">Priority</label>
             <select
               value={priority}
               onChange={(e) => setPriority(e.target.value as TaskPriority)}
-              className={`w-full rounded px-2 py-1.5 text-sm outline-none border border-[var(--color-border)] focus:border-blue-500 ${PRIORITY_STYLES[priority]}`}
+              className={`${fieldClass} ${PRIORITY_STYLES[priority]}`}
             >
               <option value="low">Low</option>
               <option value="medium">Medium</option>
@@ -190,24 +198,26 @@ export function TaskDetailModal({
 
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
-            <label className="text-xs text-zinc-500 block mb-1">Ticket code</label>
+            <label className="text-xs text-zinc-400 block mb-1">
+              Reference <span className="text-zinc-600">— optional</span>
+            </label>
             <input
               value={ticketCode}
               onChange={(e) => setTicketCode(e.target.value)}
-              placeholder="tai-0001945-dz"
-              className="w-full bg-[var(--color-bg)] border border-[var(--color-border)] rounded px-2 py-1.5 text-sm text-white outline-none focus:border-blue-500 font-mono"
+              placeholder="e.g. #42"
+              className={`${fieldClass} font-mono`}
             />
           </div>
           <div>
-            <label className="text-xs text-zinc-500 block mb-1">Group (subsection)</label>
+            <label className="text-xs text-zinc-400 block mb-1">Group</label>
             <select
               value={subsectionId ?? ""}
               onChange={(e) =>
                 setSubsectionId(e.target.value === "" ? null : Number(e.target.value))
               }
-              className="w-full bg-[var(--color-bg)] border border-[var(--color-border)] rounded px-2 py-1.5 text-sm text-white outline-none focus:border-blue-500"
+              className={fieldClass}
             >
-              <option value="">Ungrouped</option>
+              <option value="">General</option>
               {subsections.map((sub) => (
                 <option key={sub.id} value={sub.id}>
                   {sub.name}
@@ -218,23 +228,23 @@ export function TaskDetailModal({
         </div>
 
         <div className="mb-2">
-          <label className="text-xs text-zinc-500 block mb-1">
-            Email reminder <span className="text-zinc-700">— sends once, on this date</span>
+          <label className="text-xs text-zinc-400 block mb-1">
+            Reminder <span className="text-zinc-600">— a nudge on this date</span>
           </label>
           <DatePicker value={remindAt} onChange={setRemindAt} />
           {task.remind_at && task.reminder_sent && (
-            <p className="text-[10px] text-emerald-500 mt-1">✓ Already sent for this date</p>
+            <p className="text-[10px] text-emerald-400 mt-1">✓ Already sent for this date</p>
           )}
         </div>
 
         <div className="mb-4">
-          <label className="text-xs text-zinc-500 block mb-1">Description</label>
+          <label className="text-xs text-zinc-400 block mb-1">Notes</label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={4}
-            placeholder="Optional notes about this task... paste a link and it'll show a preview below"
-            className="w-full bg-[var(--color-bg)] border border-[var(--color-border)] rounded px-2 py-1.5 text-sm text-white outline-none focus:border-blue-500 resize-none"
+            placeholder="Jot down anything about this... paste a link and it'll show a preview below"
+            className={`${fieldClass} resize-none`}
           />
           {/* Links found directly IN the description text, Notion-style —
               separate from the explicit "Links" list below. */}
@@ -248,29 +258,31 @@ export function TaskDetailModal({
         </div>
 
         <div className="mb-4">
-          <label className="text-xs text-zinc-500 block mb-1">Tags (comma separated)</label>
+          <label className="text-xs text-zinc-400 block mb-1">
+            Tags <span className="text-zinc-600">— comma separated</span>
+          </label>
           <input
             value={tagsInput}
             onChange={(e) => setTagsInput(e.target.value)}
-            placeholder="Evaluations, Urgent"
-            className="w-full bg-[var(--color-bg)] border border-[var(--color-border)] rounded px-2 py-1.5 text-sm text-white outline-none focus:border-blue-500"
+            placeholder="Personal, Someday, Ideas"
+            className={fieldClass}
           />
         </div>
 
         <div className="mb-4">
           <div className="flex justify-between items-center mb-1">
-            <label className="text-xs text-zinc-500">
-              Links <span className="text-zinc-700">— click the arrow to preview</span>
+            <label className="text-xs text-zinc-400">
+              Links <span className="text-zinc-600">— click the arrow to preview</span>
             </label>
             <button
               onClick={addLink}
-              className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300"
+              className="flex items-center gap-1 text-xs text-indigo-300 hover:text-indigo-200 transition-colors"
             >
               <Plus size={12} /> Add link
             </button>
           </div>
           {links.length === 0 && (
-            <p className="text-xs text-zinc-600 italic">No links yet.</p>
+            <p className="text-xs text-zinc-500 italic">No links yet.</p>
           )}
           <div className="space-y-2">
             {links.map((link, i) => (
@@ -288,11 +300,11 @@ export function TaskDetailModal({
         {/* ---------- Attachments ---------- */}
         <div className="mb-4">
           <div className="flex justify-between items-center mb-1">
-            <label className="text-xs text-zinc-500">Attachments (PDFs, images, etc.)</label>
+            <label className="text-xs text-zinc-400">Attachments</label>
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 disabled:opacity-50"
+              className="flex items-center gap-1 text-xs text-indigo-300 hover:text-indigo-200 disabled:opacity-50 transition-colors"
             >
               <Upload size={12} /> {uploading ? "Uploading…" : "Upload file"}
             </button>
@@ -304,29 +316,26 @@ export function TaskDetailModal({
             />
           </div>
           {task.task_metadata.attachments.length === 0 ? (
-            <p className="text-xs text-zinc-600 italic">No files attached.</p>
+            <p className="text-xs text-zinc-500 italic">No files attached.</p>
           ) : (
             <div className="space-y-1.5">
               {task.task_metadata.attachments.map((att) => (
-                <div
-                  key={att.filename}
-                  className="flex items-center gap-2 bg-[var(--color-bg)] border border-[var(--color-border)] rounded px-2 py-1.5"
-                >
+                <div key={att.filename} className={rowClass}>
                   <Paperclip size={13} className="text-zinc-500 shrink-0" />
                   <a
                     href={`${BASE_URL}${att.url}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs text-blue-400 hover:text-blue-300 truncate flex-1"
+                    className="text-xs text-sky-300 hover:text-sky-200 truncate flex-1 transition-colors"
                   >
                     {att.filename.replace(/^[0-9a-f]{32}_/, "")}
                   </a>
-                  <span className="text-[10px] text-zinc-600 shrink-0">
+                  <span className="text-[10px] text-zinc-500 shrink-0">
                     {formatBytes(att.size)}
                   </span>
                   <button
                     onClick={() => onDeleteAttachment(att.filename)}
-                    className="text-zinc-600 hover:text-red-400 shrink-0"
+                    className="text-zinc-500 hover:text-rose-300 shrink-0 transition-colors"
                   >
                     <Trash2 size={12} />
                   </button>
@@ -338,28 +347,25 @@ export function TaskDetailModal({
 
         {/* ---------- Dependencies ---------- */}
         <div className="mb-4">
-          <label className="text-xs text-zinc-500 block mb-1">
-            Depends on <span className="text-zinc-700">— must finish before this task can</span>
+          <label className="text-xs text-zinc-400 block mb-1">
+            Waiting on <span className="text-zinc-600">— finishes before this can start</span>
           </label>
           {task.depends_on.length === 0 ? (
-            <p className="text-xs text-zinc-600 italic mb-2">No dependencies.</p>
+            <p className="text-xs text-zinc-500 italic mb-2">Nothing blocking this.</p>
           ) : (
             <div className="space-y-1.5 mb-2">
               {task.depends_on.map((dep) => (
-                <div
-                  key={dep.id}
-                  className="flex items-center gap-2 bg-[var(--color-bg)] border border-[var(--color-border)] rounded px-2 py-1.5"
-                >
+                <div key={dep.id} className={rowClass}>
                   <LinkIcon size={12} className="text-zinc-500 shrink-0" />
                   <span
                     className={`text-xs flex-1 ${dep.status === "done" ? "text-emerald-400" : "text-zinc-300"}`}
                   >
                     {dep.title}
                   </span>
-                  <span className="text-[10px] text-zinc-600">{dep.status}</span>
+                  <span className="text-[10px] text-zinc-500">{dep.status}</span>
                   <button
                     onClick={() => onRemoveDependency(dep.id)}
-                    className="text-zinc-600 hover:text-red-400 shrink-0"
+                    className="text-zinc-500 hover:text-rose-300 shrink-0 transition-colors"
                   >
                     <Trash2 size={12} />
                   </button>
@@ -372,9 +378,9 @@ export function TaskDetailModal({
               <select
                 value={depPickerId}
                 onChange={(e) => setDepPickerId(e.target.value)}
-                className="flex-1 bg-[var(--color-bg)] border border-[var(--color-border)] rounded px-2 py-1 text-xs text-white outline-none focus:border-blue-500"
+                className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-white/30 transition-colors"
               >
-                <option value="">Add a dependency…</option>
+                <option value="">Add something it's waiting on…</option>
                 {dependencyCandidates.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.title}
@@ -388,42 +394,42 @@ export function TaskDetailModal({
                   setDepPickerId("");
                 }}
                 disabled={!depPickerId}
-                className="text-xs text-blue-400 hover:text-blue-300 disabled:opacity-30 shrink-0"
+                className="text-xs text-indigo-300 hover:text-indigo-200 disabled:opacity-30 shrink-0 transition-colors"
               >
                 Add
               </button>
             </div>
           )}
           {task.blocks.length > 0 && (
-            <p className="text-[10px] text-zinc-600 mt-2">
-              Blocking: {task.blocks.map((b) => b.title).join(", ")}
+            <p className="text-[10px] text-zinc-500 mt-2">
+              This is holding up: {task.blocks.map((b) => b.title).join(", ")}
             </p>
           )}
         </div>
 
-        {error && <p className="text-red-400 text-xs mb-3">{error}</p>}
+        {error && <p className="text-rose-300 text-xs mb-3">{error}</p>}
 
-        <div className="flex justify-between items-center gap-2 pt-2 border-t border-[var(--color-border)]">
+        <div className="flex justify-between items-center gap-2 pt-4 border-t border-white/10">
           <button
             onClick={handleDelete}
             disabled={deleting}
-            className="flex items-center gap-1 px-3 py-1.5 text-sm text-red-400 hover:text-red-300 disabled:opacity-50"
+            className="flex items-center gap-1 px-3 py-1.5 text-sm text-rose-300 hover:text-rose-200 disabled:opacity-50 transition-colors"
           >
-            <Trash2 size={14} /> {deleting ? "Deleting…" : "Delete task"}
+            <Trash2 size={14} /> {deleting ? "Deleting…" : "Delete"}
           </button>
           <div className="flex gap-2">
             <button
               onClick={onClose}
-              className="px-3 py-1.5 text-sm text-zinc-400 hover:text-zinc-200"
+              className="px-3 py-1.5 text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
               disabled={saving}
-              className="px-4 py-1.5 text-sm bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded"
+              className="px-4 py-1.5 text-sm bg-white hover:bg-zinc-200 disabled:opacity-50 text-black font-medium rounded-full transition-colors"
             >
-              {saving ? "Saving…" : "Save changes"}
+              {saving ? "Saving…" : "Save"}
             </button>
           </div>
         </div>

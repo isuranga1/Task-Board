@@ -54,30 +54,36 @@ export function SectionTabs({
   }
 
   return (
-    <div className="flex items-center gap-2 border-b border-[var(--color-border)] mb-6 pb-2">
+    <div className="flex flex-wrap items-center gap-2 mb-6">
       {sections.map((section) => (
         <button
           key={section.id}
           onClick={() => onSelect(section.id)}
-          className={`group flex items-center gap-2 px-4 py-2 rounded-t-lg text-sm font-medium transition-colors
+          className={`group flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all
             ${
               section.id === activeSectionId
-                ? "bg-[var(--color-surface)] text-white"
-                : "text-zinc-500 hover:text-zinc-300"
+                ? "glass text-white"
+                : "text-zinc-400 hover:text-white hover:bg-white/5"
             }`}
           style={
             section.id === activeSectionId && section.color
-              ? { borderBottom: `2px solid ${section.color}` }
+              ? { boxShadow: `0 0 0 1.5px ${section.color}55 inset` }
               : undefined
           }
         >
+          {section.color && (
+            <span
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: section.color }}
+            />
+          )}
           {section.name}
           {/* Only visible on hover — keeps the tab bar uncluttered until you
               actually mean to delete something. */}
           <span
             role="button"
             onClick={(e) => handleDelete(e, section)}
-            className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 transition-opacity"
+            className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-red-300 transition-opacity"
           >
             <X size={12} />
           </span>
@@ -91,13 +97,13 @@ export function SectionTabs({
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             onBlur={() => !newName && setIsAdding(false)}
-            placeholder="Section name"
-            className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1 text-sm text-white outline-none focus:border-blue-500"
+            placeholder="Space name"
+            className="glass rounded-full px-3 py-1.5 text-sm text-white outline-none focus:border-white/30"
           />
           <button
             type="submit"
             disabled={submitting}
-            className="text-xs text-blue-400 disabled:opacity-50"
+            className="text-xs text-indigo-300 hover:text-indigo-200 font-medium disabled:opacity-50"
           >
             {submitting ? "Adding…" : "Add"}
           </button>
@@ -105,9 +111,9 @@ export function SectionTabs({
       ) : (
         <button
           onClick={() => setIsAdding(true)}
-          className="flex items-center gap-1 px-3 py-2 text-sm text-zinc-500 hover:text-zinc-300"
+          className="flex items-center gap-1 px-3 py-2 rounded-full text-sm text-zinc-500 hover:text-white hover:bg-white/5 transition-colors"
         >
-          <Plus size={14} /> Section
+          <Plus size={14} /> New space
         </button>
       )}
     </div>

@@ -1,6 +1,16 @@
-import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { useState } from "react";
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragStartEvent,
+  type DragEndEvent,
+} from "@dnd-kit/core";
 import type { Task, TaskStatus } from "../../types";
 import { Column } from "./Column";
+import { TaskCardOverlay } from "./TaskCard";
 
 interface BoardProps {
   tasks: Task[];
@@ -10,8 +20,8 @@ interface BoardProps {
 }
 
 const COLUMNS: { status: TaskStatus; title: string }[] = [
-  { status: "todo", title: "Todo" },
-  { status: "in_progress", title: "In Progress" },
+  { status: "todo", title: "To Do" },
+  { status: "in_progress", title: "Doing" },
   { status: "done", title: "Done" },
 ];
 
@@ -25,10 +35,18 @@ export function Board({ tasks, onStatusChange, onToggleSubtask, onOpenTask }: Bo
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
+  const [activeTask, setActiveTask] = useState<Task | null>(null);
+
+  function handleDragStart(event: DragStartEvent) {
+    const taskId = Number(event.active.id);
+    setActiveTask(tasks.find((t) => t.id === taskId) ?? null);
+  }
+
   // Fires when a drag gesture ends over a valid drop target. `active` is the
   // card being dragged, `over` is the column it was dropped on — we only
   // need their ids to know what moved where.
   function handleDragEnd(event: DragEndEvent) {
+    setActiveTask(null);
     const { active, over } = event;
     if (!over) return; // dropped outside any column — no-op
 
@@ -42,7 +60,12 @@ export function Board({ tasks, onStatusChange, onToggleSubtask, onOpenTask }: Bo
   }
 
   return (
-    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+    <DndContext
+      sensors={sensors}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragCancel={() => setActiveTask(null)}
+    >
       <div className="flex gap-4 overflow-x-auto pb-4">
         {COLUMNS.map((col) => (
           <Column
@@ -55,6 +78,7 @@ export function Board({ tasks, onStatusChange, onToggleSubtask, onOpenTask }: Bo
           />
         ))}
       </div>
+      <DragOverlay>{activeTask && <TaskCardOverlay task={activeTask} />}</DragOverlay>
     </DndContext>
   );
 }

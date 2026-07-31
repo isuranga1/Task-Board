@@ -15,16 +15,24 @@ import { api } from "../api/client";
 import type { AnalyticsSummary, Section } from "../types";
 
 const STATUS_COLORS: Record<string, string> = {
-  todo: "#6366f1",
-  in_progress: "#ef4444",
-  done: "#22c55e",
+  todo: "#7c8cff",
+  in_progress: "#ff9f6b",
+  done: "#4ee1a0",
 };
 
 const PRIORITY_COLORS: Record<string, string> = {
-  low: "#71717a",
-  medium: "#3b82f6",
-  high: "#f97316",
-  urgent: "#ef4444",
+  low: "#a1a1aa",
+  medium: "#7dd3fc",
+  high: "#fb923c",
+  urgent: "#fb7185",
+};
+
+const chartTooltipStyle = {
+  background: "rgba(22, 22, 28, 0.9)",
+  border: "1px solid rgba(255,255,255,0.12)",
+  borderRadius: 12,
+  fontSize: 12,
+  backdropFilter: "blur(12px)",
 };
 
 export function Analytics() {
@@ -49,11 +57,11 @@ export function Analytics() {
   }, [sectionId]);
 
   if (loading && !summary) {
-    return <p className="text-zinc-500">Loading analytics…</p>;
+    return <p className="text-zinc-400">Loading your insights…</p>;
   }
 
   if (error) {
-    return <p className="text-red-400 text-sm">{error}</p>;
+    return <p className="text-rose-300 text-sm">{error}</p>;
   }
 
   if (!summary) return null;
@@ -77,17 +85,20 @@ export function Analytics() {
       : 0;
 
   return (
-    <div>
+    <div className="mx-auto max-w-6xl">
+      <div className="flex items-center justify-between mb-1">
+        <h1 className="text-3xl font-bold text-white tracking-tight">Insights</h1>
+      </div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-white">Analytics</h1>
+        <p className="text-zinc-400 text-sm">A quick look at how things are going.</p>
         <select
           value={sectionId}
           onChange={(e) =>
             setSectionId(e.target.value === "all" ? "all" : Number(e.target.value))
           }
-          className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-3 py-1.5 text-sm text-white outline-none focus:border-blue-500"
+          className="glass rounded-xl px-3 py-1.5 text-sm text-white outline-none focus:border-white/30"
         >
-          <option value="all">All sections</option>
+          <option value="all">Everything</option>
           {sections.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}
@@ -97,38 +108,32 @@ export function Analytics() {
       </div>
 
       {/* ---------- Top stat cards ---------- */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
         <StatCard label="Total tasks" value={summary.total_tasks} />
         <StatCard
           label="Completion rate"
           value={`${Math.round(summary.completion_rate * 100)}%`}
-          accent="text-emerald-400"
+          accent="text-emerald-300"
         />
         <StatCard
           label="Overdue"
           value={summary.overdue_count}
-          accent={summary.overdue_count > 0 ? "text-red-400" : undefined}
+          accent={summary.overdue_count > 0 ? "text-rose-300" : undefined}
         />
         <StatCard label="Subtasks done" value={`${subtaskPct}%`} />
       </div>
 
-      <div className="grid grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         {/* ---------- Tasks by status ---------- */}
-        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4">
-          <h2 className="text-sm font-semibold text-zinc-300 mb-4">Tasks by status</h2>
+        <div className="glass rounded-2xl p-4">
+          <h2 className="text-sm font-semibold text-zinc-200 mb-4">Where things stand</h2>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={statusData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="status" stroke="#71717a" fontSize={12} />
-              <YAxis stroke="#71717a" fontSize={12} allowDecimals={false} />
-              <Tooltip
-                contentStyle={{
-                  background: "var(--color-surface)",
-                  border: "1px solid var(--color-border)",
-                  fontSize: 12,
-                }}
-              />
-              <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+              <XAxis dataKey="status" stroke="#a1a1aa" fontSize={12} />
+              <YAxis stroke="#a1a1aa" fontSize={12} allowDecimals={false} />
+              <Tooltip contentStyle={chartTooltipStyle} cursor={{ fill: "rgba(255,255,255,0.05)" }} />
+              <Bar dataKey="count" radius={[8, 8, 0, 0]}>
                 {statusData.map((entry) => (
                   <Cell key={entry.status} fill={STATUS_COLORS[entry.status]} />
                 ))}
@@ -138,10 +143,10 @@ export function Analytics() {
         </div>
 
         {/* ---------- Priority breakdown ---------- */}
-        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4">
-          <h2 className="text-sm font-semibold text-zinc-300 mb-4">Priority breakdown</h2>
+        <div className="glass rounded-2xl p-4">
+          <h2 className="text-sm font-semibold text-zinc-200 mb-4">Priority mix</h2>
           {priorityData.length === 0 ? (
-            <p className="text-zinc-600 text-sm italic">No tasks yet.</p>
+            <p className="text-zinc-500 text-sm italic">No tasks yet.</p>
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
@@ -159,13 +164,7 @@ export function Analytics() {
                     <Cell key={entry.name} fill={PRIORITY_COLORS[entry.name]} />
                   ))}
                 </Pie>
-                <Tooltip
-                  contentStyle={{
-                    background: "var(--color-surface)",
-                    border: "1px solid var(--color-border)",
-                    fontSize: 12,
-                  }}
-                />
+                <Tooltip contentStyle={chartTooltipStyle} />
               </PieChart>
             </ResponsiveContainer>
           )}
@@ -173,26 +172,20 @@ export function Analytics() {
       </div>
 
       {/* ---------- Completion trend ---------- */}
-      <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4">
-        <h2 className="text-sm font-semibold text-zinc-300 mb-4">
-          Tasks completed by day <span className="text-zinc-600">(by last-updated date)</span>
+      <div className="glass rounded-2xl p-4">
+        <h2 className="text-sm font-semibold text-zinc-200 mb-4">
+          Finished tasks over time <span className="text-zinc-500 font-normal">(by last-updated date)</span>
         </h2>
         {trendData.length === 0 ? (
-          <p className="text-zinc-600 text-sm italic">Nothing completed yet.</p>
+          <p className="text-zinc-500 text-sm italic">Nothing completed yet.</p>
         ) : (
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={trendData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="day" stroke="#71717a" fontSize={12} />
-              <YAxis stroke="#71717a" fontSize={12} allowDecimals={false} />
-              <Tooltip
-                contentStyle={{
-                  background: "var(--color-surface)",
-                  border: "1px solid var(--color-border)",
-                  fontSize: 12,
-                }}
-              />
-              <Bar dataKey="count" fill="#22c55e" radius={[4, 4, 0, 0]} />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+              <XAxis dataKey="day" stroke="#a1a1aa" fontSize={12} />
+              <YAxis stroke="#a1a1aa" fontSize={12} allowDecimals={false} />
+              <Tooltip contentStyle={chartTooltipStyle} cursor={{ fill: "rgba(255,255,255,0.05)" }} />
+              <Bar dataKey="count" fill="#4ee1a0" radius={[8, 8, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         )}
@@ -211,8 +204,8 @@ function StatCard({
   accent?: string;
 }) {
   return (
-    <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4">
-      <p className="text-xs text-zinc-500 mb-1">{label}</p>
+    <div className="glass rounded-2xl p-4">
+      <p className="text-xs text-zinc-400 mb-1">{label}</p>
       <p className={`text-2xl font-bold ${accent ?? "text-white"}`}>{value}</p>
     </div>
   );

@@ -59,6 +59,29 @@ body::before {
   background: var(--color-surface-hover);
 }
 
+/* A denser, more opaque glass for surfaces that need to stay readable over
+   the colorful background wash — modals and popovers, not cards. */
+.glass-panel {
+  background: rgba(18, 18, 24, 0.82);
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 1px 1px rgba(255, 255, 255, 0.06) inset,
+    0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+/* Native <select> dropdown lists are OS-rendered and ignore most CSS on the
+   select itself — this is what keeps the popup list dark instead of the
+   browser's default white. */
+select {
+  color-scheme: dark;
+}
+select option {
+  background-color: #17171d;
+  color: #f0f0f5;
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;

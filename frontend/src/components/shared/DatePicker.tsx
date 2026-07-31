@@ -56,7 +56,7 @@ export function DatePicker({ value, onChange }: DatePickerProps) {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center gap-2 bg-[var(--color-bg)] border border-[var(--color-border)] rounded px-2 py-1.5 text-sm text-white outline-none hover:border-zinc-600"
+        className="w-full flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none hover:border-white/25 transition-colors"
       >
         <Calendar size={14} className="text-zinc-500" />
         {selectedDate ? format(selectedDate, "MMM d, yyyy") : (
@@ -69,7 +69,7 @@ export function DatePicker({ value, onChange }: DatePickerProps) {
               e.stopPropagation();
               onChange("");
             }}
-            className="ml-auto text-zinc-600 hover:text-red-400"
+            className="ml-auto text-zinc-500 hover:text-rose-300 transition-colors"
           >
             <X size={13} />
           </span>
@@ -77,12 +77,12 @@ export function DatePicker({ value, onChange }: DatePickerProps) {
       </button>
 
       {open && (
-        <div className="absolute z-10 mt-1 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-3 shadow-xl w-64">
+        <div className="absolute z-10 mt-2 glass-panel rounded-2xl p-3 shadow-xl w-64">
           <div className="flex items-center justify-between mb-2">
             <button
               type="button"
               onClick={() => setViewMonth((m) => subMonths(m, 1))}
-              className="text-zinc-400 hover:text-white"
+              className="text-zinc-400 hover:text-white transition-colors"
             >
               <ChevronLeft size={16} />
             </button>
@@ -92,7 +92,7 @@ export function DatePicker({ value, onChange }: DatePickerProps) {
             <button
               type="button"
               onClick={() => setViewMonth((m) => addMonths(m, 1))}
-              className="text-zinc-400 hover:text-white"
+              className="text-zinc-400 hover:text-white transition-colors"
             >
               <ChevronRight size={16} />
             </button>
@@ -100,7 +100,7 @@ export function DatePicker({ value, onChange }: DatePickerProps) {
 
           <div className="grid grid-cols-7 gap-1 mb-1">
             {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
-              <div key={i} className="text-center text-[10px] text-zinc-600 font-medium">
+              <div key={i} className="text-center text-[10px] text-zinc-500 font-medium">
                 {d}
               </div>
             ))}
@@ -117,8 +117,8 @@ export function DatePicker({ value, onChange }: DatePickerProps) {
                   onClick={() => selectDay(day)}
                   className={`text-xs h-7 w-7 rounded-full flex items-center justify-center transition-colors
                     ${!inCurrentMonth ? "text-zinc-700" : "text-zinc-300"}
-                    ${isSelected ? "bg-blue-600 text-white" : "hover:bg-[var(--color-surface-hover)]"}
-                    ${isToday(day) && !isSelected ? "ring-1 ring-blue-500" : ""}
+                    ${isSelected ? "bg-white text-black font-medium" : "hover:bg-white/10"}
+                    ${isToday(day) && !isSelected ? "ring-1 ring-indigo-400" : ""}
                   `}
                 >
                   {format(day, "d")}
@@ -130,7 +130,7 @@ export function DatePicker({ value, onChange }: DatePickerProps) {
           <button
             type="button"
             onClick={() => selectDay(new Date())}
-            className="w-full mt-2 pt-2 border-t border-[var(--color-border)] text-xs text-blue-400 hover:text-blue-300"
+            className="w-full mt-2 pt-2 border-t border-white/10 text-xs text-indigo-300 hover:text-indigo-200 transition-colors"
           >
             Today
           </button>

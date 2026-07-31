@@ -16,15 +16,18 @@ export function Column({ status, title, tasks, onToggleSubtask, onOpenTask }: Co
   return (
     <div
       ref={setNodeRef}
-      className={`flex-1 min-w-[280px] rounded-xl p-4 transition-colors
-        ${isOver ? "bg-[var(--color-surface-hover)]" : "bg-[#111114]"}`}
+      className={`flex-1 min-w-[280px] rounded-2xl p-4 glass transition-colors
+        ${isOver ? "bg-white/10" : ""}`}
     >
-      <h2 className="text-white font-semibold mb-4">
-        {title} <span className="text-zinc-500 font-normal">({tasks.length})</span>
+      <h2 className="text-white font-semibold mb-4 flex items-center gap-2">
+        {title}{" "}
+        <span className="text-zinc-500 font-normal text-xs bg-white/5 rounded-full px-2 py-0.5">
+          {tasks.length}
+        </span>
       </h2>
 
       {tasks.length === 0 ? (
-        <p className="text-zinc-600 text-sm italic">Nothing here yet.</p>
+        <p className="text-zinc-500 text-sm italic">Nothing here yet.</p>
       ) : (
         tasks.map((task) => (
           <TaskCard

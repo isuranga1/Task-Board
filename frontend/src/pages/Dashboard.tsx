@@ -121,21 +121,22 @@ export function Dashboard() {
   }
 
   if (loadingSections) {
-    return <p className="text-zinc-500">Loading sections…</p>;
+    return <p className="text-zinc-400">Loading your board…</p>;
   }
 
   if (sectionError) {
     return (
-      <div className="text-red-400">
+      <div className="glass rounded-2xl p-5 text-red-300">
         Couldn't reach the API — is the backend running on port 8000?
-        <div className="text-xs text-zinc-600 mt-2">{sectionError}</div>
+        <div className="text-xs text-zinc-500 mt-2">{sectionError}</div>
       </div>
     );
   }
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-white mb-6">Task Dashboard</h1>
+    <div className="mx-auto max-w-6xl">
+      <h1 className="text-3xl font-bold text-white mb-1 tracking-tight">My Board</h1>
+      <p className="text-zinc-400 text-sm mb-6">Everything you're working on, in one calm place.</p>
 
       <SectionTabs
         sections={sections}
@@ -146,12 +147,12 @@ export function Dashboard() {
       />
 
       {sections.length === 0 && (
-        <p className="text-zinc-500">
-          No sections yet — add one above to get started (e.g. "Jobs", "Music", "Guitar").
+        <p className="text-zinc-400">
+          Nothing here yet — add a space above to get started (e.g. "Work", "Music", "Guitar").
         </p>
       )}
 
-      {taskError && <p className="text-red-400 text-sm mb-4">{taskError}</p>}
+      {taskError && <p className="text-red-300 text-sm mb-4">{taskError}</p>}
 
       {activeSection && (
         <div className="mb-4">
@@ -171,17 +172,17 @@ export function Dashboard() {
                 value={newGroupName}
                 onChange={(e) => setNewGroupName(e.target.value)}
                 onBlur={() => !newGroupName && setIsAddingGroup(false)}
-                placeholder="Group name (e.g. Evaluations)"
-                className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1 text-sm text-white outline-none focus:border-blue-500"
+                placeholder="Group name (e.g. Weekend Projects)"
+                className="glass rounded-lg px-3 py-1.5 text-sm text-white outline-none focus:border-white/30"
               />
-              <button type="submit" className="text-xs text-blue-400">
+              <button type="submit" className="text-xs text-indigo-300 hover:text-indigo-200 font-medium">
                 Add
               </button>
             </form>
           ) : (
             <button
               onClick={() => setIsAddingGroup(true)}
-              className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-300"
+              className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
             >
               <Plus size={12} /> Add group
             </button>
@@ -190,7 +191,7 @@ export function Dashboard() {
       )}
 
       {loadingTasks ? (
-        <p className="text-zinc-500">Loading tasks…</p>
+        <p className="text-zinc-400">Loading tasks…</p>
       ) : (
         activeSection &&
         Array.from(tasksBySubsection.entries()).map(([subId, subTasks]) => {

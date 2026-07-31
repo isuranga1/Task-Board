@@ -1,5 +1,4 @@
 import { useDraggable } from "@dnd-kit/core";
-import { CSS } from "@dnd-kit/utilities";
 import { format, differenceInCalendarDays } from "date-fns";
 import { Link2, FileText, Puzzle, Paperclip, Lock } from "lucide-react";
 import type { Task, TaskPriority } from "../../types";
@@ -10,8 +9,7 @@ interface TaskCardProps {
   onOpen: (task: Task) => void;
 }
 
-// Column accent colors — echoes the colored left-border treatment from the
-// screenshot (purple todo card, red overdue "in progress" card).
+// Column accent colors — a soft glow on the left edge instead of a hard line.
 const STATUS_ACCENT: Record<Task["status"], string> = {
   todo: "border-l-[var(--color-accent-todo)]",
   in_progress: "border-l-[var(--color-accent-progress)]",
@@ -20,9 +18,9 @@ const STATUS_ACCENT: Record<Task["status"], string> = {
 
 const PRIORITY_DOT: Record<TaskPriority, string> = {
   low: "bg-zinc-500",
-  medium: "bg-blue-500",
-  high: "bg-orange-500",
-  urgent: "bg-red-500",
+  medium: "bg-sky-400",
+  high: "bg-orange-400",
+  urgent: "bg-rose-400",
 };
 
 function DueBadge({ dueDate }: { dueDate: string | null }) {
@@ -31,27 +29,27 @@ function DueBadge({ dueDate }: { dueDate: string | null }) {
 
   if (days < 0) {
     return (
-      <span className="text-red-400 text-xs font-medium">
+      <span className="text-rose-300 text-xs font-medium">
         Late by {Math.abs(days)}d
       </span>
     );
   }
   return (
-    <span className="text-emerald-400 text-xs font-medium">
+    <span className="text-emerald-300 text-xs font-medium">
       {days === 0 ? "Due today" : `${days}d left`}
     </span>
   );
 }
 
-export function TaskCard({ task, onToggleSubtask, onOpen }: TaskCardProps) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } =
-    useDraggable({ id: task.id, data: { status: task.status } });
-
-  const style = {
-    transform: CSS.Translate.toString(transform),
-    opacity: isDragging ? 0.5 : 1,
-  };
-
+// The visual content shared by the in-column card and its drag-overlay
+// clone — kept as one function so the two never drift out of sync.
+function CardBody({
+  task,
+  onToggleSubtask,
+}: {
+  task: Task;
+  onToggleSubtask?: (subtaskId: number, isDone: boolean) => void;
+}) {
   const doneCount = task.subtasks.filter((s) => s.is_done).length;
   const links = task.task_metadata?.links ?? [];
   const attachments = task.task_metadata?.attachments ?? [];
@@ -60,16 +58,7 @@ export function TaskCard({ task, onToggleSubtask, onOpen }: TaskCardProps) {
   const isBlocked = task.depends_on.some((d) => d.status !== "done");
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...listeners}
-      {...attributes}
-      onClick={() => onOpen(task)}
-      className={`bg-[var(--color-surface)] border border-[var(--color-border)] border-l-4 ${STATUS_ACCENT[task.status]}
-        rounded-lg p-3 mb-3 cursor-grab active:cursor-grabbing
-        hover:bg-[var(--color-surface-hover)] transition-colors`}
-    >
+    <>
       <div className="flex justify-between items-start gap-2">
         <div className="flex items-center gap-1.5 min-w-0">
           <span
@@ -80,16 +69,11 @@ export function TaskCard({ task, onToggleSubtask, onOpen }: TaskCardProps) {
             {task.title}
           </h3>
           {isBlocked && (
-            <span title="Blocked by an unfinished dependency" className="shrink-0">
-              <Lock size={11} className="text-red-400" />
+            <span title="Waiting on something else to finish first" className="shrink-0">
+              <Lock size={11} className="text-rose-300" />
             </span>
           )}
         </div>
-        {task.ticket_code && (
-          <span className="text-[11px] text-zinc-500 font-mono whitespace-nowrap">
-            {task.ticket_code}
-          </span>
-        )}
       </div>
 
       {task.task_metadata?.tags?.length > 0 && (
@@ -97,7 +81,7 @@ export function TaskCard({ task, onToggleSubtask, onOpen }: TaskCardProps) {
           {task.task_metadata.tags.map((tag) => (
             <span
               key={tag}
-              className="text-[11px] px-2 py-0.5 rounded bg-emerald-900/40 text-emerald-300"
+              className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-400/10 text-emerald-300 border border-emerald-400/20"
             >
               {tag}
             </span>
@@ -109,8 +93,8 @@ export function TaskCard({ task, onToggleSubtask, onOpen }: TaskCardProps) {
         {task.due_date && (
           <span className="text-xs">{format(new Date(task.due_date), "MMM d")}</span>
         )}
-        {links.length > 0 && <Link2 size={13} className="text-blue-400" />}
-        {task.description && <FileText size={13} className="text-emerald-400" />}
+        {links.length > 0 && <Link2 size={13} className="text-sky-300" />}
+        {task.description && <FileText size={13} className="text-emerald-300" />}
         {task.subtasks.length > 0 && <Puzzle size={13} className="text-zinc-500" />}
         {attachments.length > 0 && <Paperclip size={13} className="text-zinc-500" />}
         <div className="ml-auto">
@@ -119,9 +103,9 @@ export function TaskCard({ task, onToggleSubtask, onOpen }: TaskCardProps) {
       </div>
 
       {task.subtasks.length > 0 && (
-        <div className="mt-3 border-t border-[var(--color-border)] pt-2">
+        <div className="mt-3 border-t border-white/10 pt-2">
           <p className="text-xs text-zinc-500 mb-1">
-            Subtasks: {doneCount}/{task.subtasks.length}
+            {doneCount}/{task.subtasks.length} done
           </p>
           <ul className="space-y-1">
             {task.subtasks.map((subtask) => (
@@ -131,7 +115,7 @@ export function TaskCard({ task, onToggleSubtask, onOpen }: TaskCardProps) {
                   checked={subtask.is_done}
                   onChange={(e) => {
                     e.stopPropagation();
-                    onToggleSubtask(subtask.id, e.target.checked);
+                    onToggleSubtask?.(subtask.id, e.target.checked);
                   }}
                   onPointerDown={(e) => e.stopPropagation()} // don't start a drag when clicking the checkbox
                   className="accent-emerald-500"
@@ -148,6 +132,42 @@ export function TaskCard({ task, onToggleSubtask, onOpen }: TaskCardProps) {
           </ul>
         </div>
       )}
+    </>
+  );
+}
+
+export function TaskCard({ task, onToggleSubtask, onOpen }: TaskCardProps) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: task.id,
+    data: { status: task.status },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      onClick={() => onOpen(task)}
+      className={`glass glass-hover border-l-[3px] ${STATUS_ACCENT[task.status]}
+        rounded-2xl p-3.5 mb-3 cursor-grab active:cursor-grabbing
+        ${isDragging ? "opacity-30" : ""}`}
+    >
+      <CardBody task={task} onToggleSubtask={onToggleSubtask} />
+    </div>
+  );
+}
+
+// Rendered inside dnd-kit's <DragOverlay>, which portals to the document
+// root — this is what actually floats above every column while dragging.
+// The in-place card above just dims to a ghost (isDragging opacity-30) so
+// nothing gets clipped by a neighboring column's own glass stacking context.
+export function TaskCardOverlay({ task }: { task: Task }) {
+  return (
+    <div
+      className={`glass border-l-[3px] ${STATUS_ACCENT[task.status]}
+        rounded-2xl p-3.5 cursor-grabbing shadow-2xl scale-105 rotate-1`}
+    >
+      <CardBody task={task} />
     </div>
   );
 }

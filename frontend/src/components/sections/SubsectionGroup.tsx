@@ -50,14 +50,16 @@ export function SubsectionGroup({
       <div className="group flex items-center gap-2 mb-3">
         <button
           onClick={() => setCollapsed((c) => !c)}
-          className="text-zinc-500 hover:text-zinc-300"
+          className="text-zinc-500 hover:text-zinc-300 transition-colors"
         >
           {collapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
         </button>
-        <h3 className="text-zinc-300 font-semibold text-sm uppercase tracking-wide">
-          {subsection?.name ?? "Ungrouped"}
+        <h3 className="text-zinc-200 font-semibold text-sm tracking-wide">
+          {subsection?.name ?? "General"}
         </h3>
-        <span className="text-zinc-600 text-xs">{tasks.length}</span>
+        <span className="text-zinc-500 text-xs bg-white/5 rounded-full px-1.5 py-0.5">
+          {tasks.length}
+        </span>
 
         {isAdding ? (
           <form onSubmit={handleAdd} className="flex items-center gap-2 ml-2">
@@ -67,22 +69,22 @@ export function SubsectionGroup({
               onChange={(e) => setTitle(e.target.value)}
               onBlur={() => !title && setIsAdding(false)}
               placeholder="Task title"
-              className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded px-2 py-1 text-xs text-white outline-none focus:border-blue-500"
+              className="glass rounded-lg px-2 py-1 text-xs text-white outline-none focus:border-white/30"
             />
-            <button type="submit" className="text-xs text-blue-400">
+            <button type="submit" className="text-xs text-indigo-300 hover:text-indigo-200 font-medium">
               Add
             </button>
           </form>
         ) : (
           <button
             onClick={() => setIsAdding(true)}
-            className="flex items-center gap-1 text-xs text-zinc-600 hover:text-zinc-400 ml-2"
+            className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-300 ml-2 transition-colors"
           >
             <Plus size={12} /> Task
           </button>
         )}
 
-        {/* The "Ungrouped" bucket isn't a real subsection, so it can't be
+        {/* The "General" bucket isn't a real subsection, so it can't be
             deleted — only show this for actual named groups. Hidden until
             hover so the header doesn't look cluttered by default. */}
         {subsection && (
