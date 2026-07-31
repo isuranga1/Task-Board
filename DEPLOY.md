@@ -12,6 +12,9 @@ from any device on your tailnet, with a one-command way to push updates.
   exposure, nothing to open on your router.
 - `./deploy.sh` (or a GitHub Actions push trigger, see §5) pulls your latest
   `main` and redeploys, including any new database migrations.
+- `scripts/backup-db.sh` dumps the database and uploads it to Google Drive
+  (and/or another tailnet device) — schedule it with cron, or just run it
+  by hand whenever; either way losing the Pi doesn't mean losing your data (§7).
 
 ## 1. One-time Pi setup
 
@@ -148,11 +151,135 @@ docker compose restart backend     # restart just one service
 docker compose down                # stop everything (data volumes persist)
 ```
 
-**Backups** — the Postgres data lives in the named volume `pgdata`; back it
-up with `docker compose exec db pg_dump -U <user> <db> > backup.sql`
-periodically (e.g. a cron job piping to a file off-device).
+## 7. Backups (off the Pi)
 
-## 7. Troubleshooting
+Local Docker volumes don't help if the Pi itself is lost, has SD card
+corruption, or otherwise dies — `scripts/backup-db.sh` dumps the DB, keeps a
+rotating local window, and can push a copy to **Google Drive**, **another
+device on your tailnet**, or both — each one is an independent on/off
+switch in `backup.env`. Running it on a schedule (cron, §7.3) is itself
+optional; it's just as safe to run by hand whenever you want a fresh backup.
+
+```bash
+cp backup.env.example backup.env
+nano backup.env
+```
+
+### 7.1 Google Drive (recommended — `BACKUP_TO_GDRIVE=true`)
+
+Uses [rclone](https://rclone.org), which handles the Google OAuth dance and
+the actual upload. One-time setup on the Pi:
+
+```bash
+sudo -v ; curl https://rclone.org/install.sh | sudo bash
+rclone config
+```
+
+Walk through the prompts:
+
+1. `n` — New remote
+2. Name: `gdrive` (must match `GDRIVE_REMOTE_NAME` in `backup.env`)
+3. Storage type: search/enter `drive` (Google Drive)
+4. `client_id` / `client_secret`: leave both **blank** (uses rclone's own)
+5. `scope`: **read the option text, don't just pick a number** — the menu
+   order isn't the same across rclone versions. Pick the one whose
+   description literally says *"Access to files created by rclone"* (this
+   is `drive.file` — rclone can only see/manage files it creates, not your
+   whole Drive). If you're at all unsure which one that is, picking *"Full
+   access all files, excluding Application Data Folder"* (`drive`) is the
+   foolproof option for a personal single-account backup script — it just
+   grants more than strictly necessary. Picking a read-only option here is
+   the single most common cause of a `403 ACCESS_TOKEN_SCOPE_INSUFFICIENT`
+   error later when the script tries to upload.
+6. `root_folder_id`, `service_account_file`: leave blank
+7. `Edit advanced config?` → `n`
+8. `Use auto config?` → **`n`** — the Pi has no browser. rclone prints
+   something like:
+   ```
+   Execute the following on a computer with a web browser and paste the
+   config here:
+   rclone authorize "drive" "scope" "..."
+   ```
+9. On your PC (with [rclone installed](https://rclone.org/downloads/) too),
+   run that exact `rclone authorize ...` command — it opens a browser, you
+   sign into the Google account you want backups to land in, and it prints
+   a config token back in that PC's terminal.
+10. Paste that token back into the Pi's `rclone config` prompt, confirm
+    `y` it looks right, `q` to quit config.
+
+Then create the target folder and test:
+
+```bash
+rclone mkdir gdrive:task-board-backups
+chmod +x scripts/backup-db.sh
+./scripts/backup-db.sh
+rclone ls gdrive:task-board-backups   # should show today's .sql.gz
+```
+
+`GDRIVE_RETENTION_DAYS` (default 30) is the "renew daily" part — each run
+deletes anything older than that from the Drive folder, so it stays a
+rolling window of recent backups instead of growing forever.
+
+### 7.2 Another device on your tailnet (optional — `BACKUP_TO_REMOTE=true`)
+
+Can be used instead of or alongside Google Drive.
+
+Generate a dedicated key on the Pi so a scheduled run can `scp` without a
+password prompt, and make sure the remote path in `backup.env` already
+exists:
+
+```bash
+ssh-keygen -t ed25519 -f ~/.ssh/backup_key -N ""
+```
+
+Add the **public** half (`~/.ssh/backup_key.pub`) to the remote's allowed
+keys:
+
+- **Linux/Mac remote:** `ssh-copy-id -i ~/.ssh/backup_key.pub user@remote`
+  (or append it to `~/.ssh/authorized_keys` there by hand).
+- **Windows remote** (needs *OpenSSH Server*, an optional Windows feature —
+  Settings → Apps → Optional Features → Add → OpenSSH Server): append the
+  key to `C:\Users\<user>\.ssh\authorized_keys` for a normal account, or
+  `C:\ProgramData\ssh\administrators_authorized_keys` (with restricted ACLs
+  — see Microsoft's OpenSSH docs) if that account is an administrator.
+
+Test with `./scripts/backup-db.sh` — you should see a new file both in
+`./backups/` on the Pi and on the remote path you configured.
+
+### 7.3 Scheduling (optional)
+
+Nothing above requires a schedule — running `./scripts/backup-db.sh` by
+hand whenever is a perfectly valid way to use it. If you want it automatic,
+cron is the standard way: daily at 3am, logging to a file so failures are
+visible.
+
+```bash
+crontab -e
+# add:
+0 3 * * * /home/pi/Task-Board/scripts/backup-db.sh >> /home/pi/Task-Board/backups/backup.log 2>&1
+```
+
+**If a destination is unreachable at backup time** (Drive API hiccup,
+tailnet device asleep), the script logs it and moves on rather than
+failing the whole run — the local copy still exists either way.
+`LOCAL_RETENTION_DAYS` in `backup.env` is your buffer: as long as the
+destination comes back within that window, the next successful run catches
+it up.
+
+**Restoring** a dump (e.g. onto a freshly re-imaged Pi, after redoing steps
+1–4 above):
+
+```bash
+gunzip -c backups/task_dashboard-<timestamp>.sql.gz \
+  | docker compose exec -T db psql -U "$POSTGRES_USER" "$POSTGRES_DB"
+```
+
+Run that against a just-created, empty database (i.e. right after
+`docker compose up -d db` on a brand new deployment, before starting the
+backend) — restoring on top of an already-populated DB will hit constraint
+conflicts.
+
+## 8. Troubleshooting
 
 - **`pip install` fails building `psycopg2-binary` on the Pi** — no
   prebuilt wheel for your exact Python/arch. Add build deps to

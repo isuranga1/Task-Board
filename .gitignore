@@ -152,3 +152,7 @@ __pycache__/
 
 # User-uploaded task attachments — never track these
 backend/uploads/
+
+# DB backups and their config — local artifacts, not source
+/backups/
+backup.env
