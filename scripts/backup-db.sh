@@ -14,10 +14,32 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."   # repo root — docker compose needs docker-compose.yml + .env here
 
-# shellcheck source=/dev/null
-source ./.env
-# shellcheck source=/dev/null
-source ./backup.env
+# Reads KEY=value out of a dotenv-style file WITHOUT executing it as shell.
+# `source`-ing a raw .env is unsafe here: Docker Compose's own .env parser
+# is a plain KEY=VALUE reader (no shell interpretation), but bash's `source`
+# really does execute the file — so a value with unquoted spaces (a Gmail
+# app password, say) gets parsed as a command instead of a string and blows
+# up with "command not found". This reads only the one key asked for.
+env_var() {
+  local file="$1" key="$2"
+  grep -E "^${key}=" "$file" | tail -n1 | cut -d '=' -f2- | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'\$//"
+}
+
+POSTGRES_USER=$(env_var ./.env POSTGRES_USER)
+POSTGRES_DB=$(env_var ./.env POSTGRES_DB)
+
+BACKUP_TO_GDRIVE=$(env_var ./backup.env BACKUP_TO_GDRIVE)
+GDRIVE_REMOTE_NAME=$(env_var ./backup.env GDRIVE_REMOTE_NAME)
+GDRIVE_FOLDER=$(env_var ./backup.env GDRIVE_FOLDER)
+GDRIVE_RETENTION_DAYS=$(env_var ./backup.env GDRIVE_RETENTION_DAYS)
+
+BACKUP_TO_REMOTE=$(env_var ./backup.env BACKUP_TO_REMOTE)
+BACKUP_REMOTE_USER=$(env_var ./backup.env BACKUP_REMOTE_USER)
+BACKUP_REMOTE_HOST=$(env_var ./backup.env BACKUP_REMOTE_HOST)
+BACKUP_REMOTE_PATH=$(env_var ./backup.env BACKUP_REMOTE_PATH)
+BACKUP_SSH_KEY=$(env_var ./backup.env BACKUP_SSH_KEY)
+
+LOCAL_RETENTION_DAYS=$(env_var ./backup.env LOCAL_RETENTION_DAYS)
 
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 LOCAL_DIR="./backups"
