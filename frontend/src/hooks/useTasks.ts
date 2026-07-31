@@ -100,6 +100,33 @@ export function useTasks(sectionId: number | null) {
     []
   );
 
+  // These four all follow the same shape: the backend returns the FULL
+  // updated task (not just the changed field), so each one simply replaces
+  // that task wholesale in state rather than trying to patch pieces of it.
+  const uploadAttachment = useCallback(async (taskId: number, file: File) => {
+    const updated = await api.uploadAttachment(taskId, file);
+    setTasks((current) => current.map((t) => (t.id === taskId ? updated : t)));
+    return updated;
+  }, []);
+
+  const deleteAttachment = useCallback(async (taskId: number, filename: string) => {
+    const updated = await api.deleteAttachment(taskId, filename);
+    setTasks((current) => current.map((t) => (t.id === taskId ? updated : t)));
+    return updated;
+  }, []);
+
+  const addDependency = useCallback(async (taskId: number, dependsOnId: number) => {
+    const updated = await api.addDependency(taskId, dependsOnId);
+    setTasks((current) => current.map((t) => (t.id === taskId ? updated : t)));
+    return updated;
+  }, []);
+
+  const removeDependency = useCallback(async (taskId: number, dependsOnId: number) => {
+    const updated = await api.removeDependency(taskId, dependsOnId);
+    setTasks((current) => current.map((t) => (t.id === taskId ? updated : t)));
+    return updated;
+  }, []);
+
   return {
     tasks,
     loading,
@@ -110,5 +137,9 @@ export function useTasks(sectionId: number | null) {
     createTask,
     deleteTask,
     toggleSubtask,
+    uploadAttachment,
+    deleteAttachment,
+    addDependency,
+    removeDependency,
   };
 }

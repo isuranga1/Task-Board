@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, ChevronDown, ChevronRight, X } from "lucide-react";
 import type { Subsection, Task, TaskStatus } from "../../types";
 import { Board } from "../board/Board";
 
@@ -10,6 +10,7 @@ interface SubsectionGroupProps {
   onToggleSubtask: (taskId: number, subtaskId: number, isDone: boolean) => void;
   onAddTask: (title: string) => void;
   onOpenTask: (task: Task) => void;
+  onDeleteGroup: (subsectionId: number) => void;
 }
 
 export function SubsectionGroup({
@@ -19,6 +20,7 @@ export function SubsectionGroup({
   onToggleSubtask,
   onAddTask,
   onOpenTask,
+  onDeleteGroup,
 }: SubsectionGroupProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
@@ -32,9 +34,20 @@ export function SubsectionGroup({
     setIsAdding(false);
   }
 
+  function handleDeleteGroup() {
+    if (!subsection) return;
+    const taskCount = tasks.length;
+    const message =
+      taskCount > 0
+        ? `Delete group "${subsection.name}"? Its ${taskCount} task${taskCount === 1 ? "" : "s"} will become ungrouped, not deleted.`
+        : `Delete group "${subsection.name}"?`;
+    if (!confirm(message)) return;
+    onDeleteGroup(subsection.id);
+  }
+
   return (
     <div className="mb-8">
-      <div className="flex items-center gap-2 mb-3">
+      <div className="group flex items-center gap-2 mb-3">
         <button
           onClick={() => setCollapsed((c) => !c)}
           className="text-zinc-500 hover:text-zinc-300"
@@ -66,6 +79,19 @@ export function SubsectionGroup({
             className="flex items-center gap-1 text-xs text-zinc-600 hover:text-zinc-400 ml-2"
           >
             <Plus size={12} /> Task
+          </button>
+        )}
+
+        {/* The "Ungrouped" bucket isn't a real subsection, so it can't be
+            deleted — only show this for actual named groups. Hidden until
+            hover so the header doesn't look cluttered by default. */}
+        {subsection && (
+          <button
+            onClick={handleDeleteGroup}
+            className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 transition-opacity ml-auto"
+            title="Delete group"
+          >
+            <X size={14} />
           </button>
         )}
       </div>

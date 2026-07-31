@@ -1,16 +1,78 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg: #0d0d10;
-  --color-surface: #16161b;
-  --color-surface-hover: #1c1c23;
-  --color-border: #2a2a33;
-  --color-accent-todo: #6366f1;
-  --color-accent-progress: #ef4444;
-  --color-accent-done: #22c55e;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+
+  --color-bg: #0b0b14;
+  --color-surface: rgba(255, 255, 255, 0.055);
+  --color-surface-hover: rgba(255, 255, 255, 0.09);
+  --color-border: rgba(255, 255, 255, 0.1);
+
+  --color-accent-todo: #7c8cff;
+  --color-accent-progress: #ff9f6b;
+  --color-accent-done: #4ee1a0;
+}
+
+html {
+  color-scheme: dark;
 }
 
 body {
+  min-height: 100vh;
   background-color: var(--color-bg);
-  color: #e4e4e7;
+  color: #f0f0f5;
+  font-family: var(--font-sans);
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Soft, blurred color wash behind everything — the "wallpaper" a glass UI floats on */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(38rem 30rem at 12% 8%, rgba(124, 140, 255, 0.32), transparent 60%),
+    radial-gradient(34rem 28rem at 88% 18%, rgba(255, 122, 200, 0.22), transparent 60%),
+    radial-gradient(40rem 34rem at 25% 92%, rgba(78, 225, 160, 0.18), transparent 60%),
+    radial-gradient(36rem 30rem at 95% 88%, rgba(255, 159, 107, 0.2), transparent 60%),
+    var(--color-bg);
+  background-color: var(--color-bg);
+}
+
+/* Reusable glass surface — used via className="glass" */
+.glass {
+  background: var(--color-surface);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid var(--color-border);
+  box-shadow:
+    0 1px 1px rgba(255, 255, 255, 0.06) inset,
+    0 8px 30px rgba(0, 0, 0, 0.35);
+}
+
+.glass-hover {
+  transition: background-color 150ms ease, border-color 150ms ease, transform 150ms ease;
+}
+.glass-hover:hover {
+  background: var(--color-surface-hover);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+  background-clip: padding-box;
 }

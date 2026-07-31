@@ -68,3 +68,29 @@ The "Jobs / Music / Guitar" configurability lives entirely in the database, not
 hardcoded anywhere in the frontend — `SectionTabs`' "+ Section" button calls
 `POST /sections/`, and the new section just shows up as another tab. No code
 changes needed to add a new dashboard category.
+
+## New features
+
+- **Grouping**: "+ Add group" above the board creates a subsection. Click into
+  a task and use the "Group" dropdown to assign/move it.
+- **Section deletion**: hover a section tab to reveal an ✕, with a confirm prompt.
+- **Priority**: a color-coded dot on each card (grey/blue/orange/red for
+  low/medium/high/urgent), editable in the task modal.
+- **Attachments**: upload PDFs/images/anything from the task modal; files go to
+  the backend's `uploads/` folder and are listed with size + a download link.
+- **Dependencies**: "Depends on" picker in the modal — pick any other task in
+  the same section. A 🔒 icon shows on a card if it's blocked by an unfinished
+  dependency. The reverse ("Blocking: ...") shows automatically too.
+- **Description embeds**: paste a URL directly into the description text —
+  it's auto-detected and shown as an expandable preview below the textarea,
+  Notion-style. YouTube/Vimeo links embed a real player.
+- **Analytics tab**: totals, completion rate, overdue count, priority
+  breakdown (pie chart), status breakdown (bar chart), and a completed-per-day
+  trend chart. Filterable by section.
+
+## A note on link/attachment previews
+
+Generic (non-YouTube/Vimeo) link previews use a plain `<iframe>`. Many sites
+set `X-Frame-Options` or a CSP that blocks being embedded this way — that's the
+site's own security setting, not a bug here. When a preview looks blank, use
+the "open in new tab" icon next to it instead.

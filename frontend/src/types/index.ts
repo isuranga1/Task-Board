@@ -3,16 +3,25 @@
 // from the FastAPI OpenAPI schema becomes worth it, but not yet.
 
 export type TaskStatus = "todo" | "in_progress" | "done";
+export type TaskPriority = "low" | "medium" | "high" | "urgent";
 
 export interface Link {
   label: string;
   url: string;
 }
 
+export interface Attachment {
+  filename: string;
+  url: string;
+  size: number;
+  content_type: string;
+}
+
 export interface TaskMetadata {
   links: Link[];
   tags: string[];
   assignee_avatar_url?: string | null;
+  attachments: Attachment[];
   // `extra="allow"` on the backend means more keys can show up here than
   // the ones above — this index signature lets TS accept them without
   // you needing to redeclare every possible key.
@@ -27,6 +36,15 @@ export interface Subtask {
   position: number;
 }
 
+// Minimal shape used inside a task's depends_on/blocks lists — mirrors
+// backend's TaskSummary, which deliberately avoids embedding a FULL task
+// (that would recurse into ITS OWN depends_on/blocks forever).
+export interface TaskSummary {
+  id: number;
+  title: string;
+  status: TaskStatus;
+}
+
 export interface Task {
   id: number;
   section_id: number;
@@ -34,12 +52,17 @@ export interface Task {
   title: string;
   description: string | null;
   status: TaskStatus;
+  priority: TaskPriority;
   ticket_code: string | null;
   due_date: string | null; // ISO date string, e.g. "2026-07-10"
+  remind_at: string | null;
+  reminder_sent: boolean;
   created_at: string;
   updated_at: string;
   task_metadata: TaskMetadata;
   subtasks: Subtask[];
+  depends_on: TaskSummary[];
+  blocks: TaskSummary[];
 }
 
 export interface Subsection {
@@ -65,8 +88,10 @@ export interface TaskCreatePayload {
   title: string;
   description?: string | null;
   status?: TaskStatus;
+  priority?: TaskPriority;
   ticket_code?: string | null;
   due_date?: string | null;
+  remind_at?: string | null;
   subsection_id?: number | null;
   task_metadata?: Partial<TaskMetadata>;
 }
@@ -84,4 +109,15 @@ export interface SectionCreatePayload {
 export interface SubsectionCreatePayload {
   name: string;
   position?: number;
+}
+
+export interface AnalyticsSummary {
+  total_tasks: number;
+  by_status: Record<TaskStatus, number>;
+  by_priority: Record<TaskPriority, number>;
+  completion_rate: number;
+  overdue_count: number;
+  subtasks_total: number;
+  subtasks_done: number;
+  completed_by_day: Record<string, number>;
 }

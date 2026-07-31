@@ -10,6 +10,8 @@ from sqlalchemy import (
     ForeignKey,
     Enum,
     Boolean,
+    Table,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -22,6 +24,27 @@ class TaskStatus(str, enum.Enum):
     todo = "todo"
     in_progress = "in_progress"
     done = "done"
+
+
+class TaskPriority(str, enum.Enum):
+    low = "low"
+    medium = "medium"
+    high = "high"
+    urgent = "urgent"
+
+
+# Self-referential many-to-many: "task_id depends on depends_on_id" means
+# task_id cannot be considered truly done until depends_on_id is done.
+# A plain association table (not its own model class) is the standard
+# SQLAlchemy pattern when the relationship itself carries no extra data
+# beyond the two foreign keys.
+task_dependencies = Table(
+    "task_dependencies",
+    Base.metadata,
+    Column("task_id", Integer, ForeignKey("tasks.id", ondelete="CASCADE"), primary_key=True),
+    Column("depends_on_id", Integer, ForeignKey("tasks.id", ondelete="CASCADE"), primary_key=True),
+    UniqueConstraint("task_id", "depends_on_id", name="uq_task_dependency"),
+)
 
 
 class Section(Base):
@@ -62,12 +85,14 @@ class Task(Base):
     subsection_id = Column(
         Integer, ForeignKey("subsections.id", ondelete="SET NULL"), nullable=True
     )
-    priority = Column(Integer, default=0)
     title = Column(String, nullable=False)
     description = Column(Text, nullable=True)
     status = Column(Enum(TaskStatus), default=TaskStatus.todo, nullable=False)
+    priority = Column(Enum(TaskPriority), default=TaskPriority.medium, nullable=False)
     ticket_code = Column(String, nullable=True)     # e.g. "tai-0001945-dz"
     due_date = Column(Date, nullable=True)
+    remind_at = Column(Date, nullable=True)          # date to send a reminder email
+    reminder_sent = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -75,13 +100,26 @@ class Task(Base):
     # Note: mapped to Python attr `task_metadata` because SQLAlchemy reserves
     # the name `metadata` on declarative models — but the actual DB column is
     # still called `metadata`, matching the SQL schema from the setup guide.
-    task_metadata = Column("metadata", JSONB, default=dict)  # links[], tags[], avatar_url
+    # `attachments` (uploaded files) also lives here: [{filename, url, size, content_type}]
+    task_metadata = Column("metadata", JSONB, default=dict)  # links[], tags[], attachments[]
 
     section = relationship("Section", back_populates="tasks")
     subsection = relationship("Subsection", back_populates="tasks")
     subtasks = relationship(
         "Subtask", back_populates="task", cascade="all, delete-orphan",
         order_by="Subtask.position",
+    )
+
+    # `depends_on`: the tasks THIS task is blocked by (must finish first).
+    # `blocks`: the tasks that are blocked BY this one — the reverse view,
+    # computed automatically by SQLAlchemy from the same association table
+    # via `secondaryjoin`/`primaryjoin` swapped.
+    depends_on = relationship(
+        "Task",
+        secondary=task_dependencies,
+        primaryjoin=id == task_dependencies.c.task_id,
+        secondaryjoin=id == task_dependencies.c.depends_on_id,
+        backref="blocks",
     )
 
 

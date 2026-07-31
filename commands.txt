@@ -1,0 +1,55 @@
+uvicorn app.main:app --reload --port 8000
+
+1. Unzip and navigate in
+powershell
+cd Downloads
+Expand-Archive task-dashboard.zip -DestinationPath .
+cd task-dashboard
+2. Postgres — create the database and user
+powershell
+psql -U postgres
+
+Inside psql, run:
+
+sql
+CREATE DATABASE task_dashboard;
+CREATE USER dashboard_user WITH PASSWORD 'yourpassword';
+GRANT ALL PRIVILEGES ON DATABASE task_dashboard TO dashboard_user;
+\c task_dashboard
+GRANT ALL PRIVILEGES ON SCHEMA public TO dashboard_user;
+\q
+
+(Pick your own password instead of yourpassword — just remember it for step 3.)
+
+3. Backend setup
+powershell
+cd backend
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+
+Create the .env file (PowerShell doesn't have a nice one-liner for multi-value files, so just create it in a text editor, or run this):
+
+powershell
+notepad .env
+
+Paste this in, save, close:
+
+DATABASE_URL=postgresql://dashboard_user:yourpassword@localhost:5432/task_dashboard
+
+(Use the same password you set in step 2. SMTP lines for email reminders are optional — skip them for now, add later per backend/README.md.)
+
+Run the migration, then start the server:
+
+powershell
+alembic upgrade head
+uvicorn app.main:app --reload --port 8000
+
+Leave this terminal running. Open http://localhost:8000/docs in a browser — you should see the Swagger UI. That confirms the backend's alive before you touch the frontend.
+
+4. Frontend setup (open a second PowerShell window)
+powershell
+cd Downloads\task-dashboard\frontend
+npm install
+copy .env.example .env
+npm run dev

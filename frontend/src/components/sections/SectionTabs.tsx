@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import type { Section } from "../../types";
 
 interface SectionTabsProps {
@@ -7,9 +7,12 @@ interface SectionTabsProps {
   activeSectionId: number | null;
   onSelect: (id: number) => void;
   onCreate: (name: string) => Promise<void>;
-  onDeleteSection?: (id: number) => Promise<void>;
+  onDelete: (id: number) => Promise<void>;
 }
 
+// Turns "Job Opportunities" into "job-opportunities" — a URL/DB-friendly
+// slug generated from what the person actually types, so they never have
+// to think about slugs at all.
 function slugify(name: string) {
   return name
     .toLowerCase()
@@ -23,7 +26,7 @@ export function SectionTabs({
   activeSectionId,
   onSelect,
   onCreate,
-  onDeleteSection,
+  onDelete,
 }: SectionTabsProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState("");
@@ -42,13 +45,21 @@ export function SectionTabs({
     }
   }
 
+  async function handleDelete(e: React.MouseEvent, section: Section) {
+    e.stopPropagation(); // don't also trigger onSelect on the parent button
+    if (!confirm(`Delete section "${section.name}" and everything in it? This can't be undone.`)) {
+      return;
+    }
+    await onDelete(section.id);
+  }
+
   return (
     <div className="flex items-center gap-2 border-b border-[var(--color-border)] mb-6 pb-2">
       {sections.map((section) => (
         <button
           key={section.id}
           onClick={() => onSelect(section.id)}
-          className={`flex items-center gap-2 px-4 py-2 rounded-t-lg text-sm font-medium transition-colors
+          className={`group flex items-center gap-2 px-4 py-2 rounded-t-lg text-sm font-medium transition-colors
             ${
               section.id === activeSectionId
                 ? "bg-[var(--color-surface)] text-white"
@@ -60,23 +71,16 @@ export function SectionTabs({
               : undefined
           }
         >
-          <span>{section.name}</span>
-          
-          {/* Show delete button only on the currently active tab */}
-          {section.id === activeSectionId && onDeleteSection && (
-            <div 
-              onClick={(e) => { 
-                e.stopPropagation(); 
-                if(window.confirm("Are you sure you want to delete this section?")) {
-                  onDeleteSection(section.id); 
-                }
-              }} 
-              className="text-zinc-500 hover:text-red-400 transition-colors p-0.5 rounded-sm hover:bg-red-400/10"
-              title="Delete Section"
-            >
-              <Trash2 size={14} />
-            </div>
-          )}
+          {section.name}
+          {/* Only visible on hover — keeps the tab bar uncluttered until you
+              actually mean to delete something. */}
+          <span
+            role="button"
+            onClick={(e) => handleDelete(e, section)}
+            className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 transition-opacity"
+          >
+            <X size={12} />
+          </span>
         </button>
       ))}
 

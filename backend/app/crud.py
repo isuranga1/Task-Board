@@ -1,7 +1,8 @@
 from sqlalchemy.orm import Session, selectinload
-from sqlalchemy import select
+from sqlalchemy import select, func
+from datetime import date
 
-from .import models, schemas
+from . import models, schemas
 
 
 # ---------- Sections ----------
@@ -87,7 +88,11 @@ def get_tasks_for_section(db: Session, section_id: int) -> list[models.Task]:
     stmt = (
         select(models.Task)
         .where(models.Task.section_id == section_id)
-        .options(selectinload(models.Task.subtasks))
+        .options(
+            selectinload(models.Task.subtasks),
+            selectinload(models.Task.depends_on),
+            selectinload(models.Task.blocks),
+        )
         .order_by(models.Task.created_at)
     )
     return db.execute(stmt).scalars().all()
@@ -97,7 +102,11 @@ def get_task(db: Session, task_id: int) -> models.Task | None:
     stmt = (
         select(models.Task)
         .where(models.Task.id == task_id)
-        .options(selectinload(models.Task.subtasks))
+        .options(
+            selectinload(models.Task.subtasks),
+            selectinload(models.Task.depends_on),
+            selectinload(models.Task.blocks),
+        )
     )
     return db.execute(stmt).scalar_one_or_none()
 
@@ -169,3 +178,118 @@ def delete_subtask(db: Session, subtask_id: int) -> bool:
     db.delete(db_subtask)
     db.commit()
     return True
+
+
+# ---------- Task dependencies (blocking relationships) ----------
+
+def add_dependency(db: Session, task_id: int, depends_on_id: int) -> models.Task | None:
+    if task_id == depends_on_id:
+        raise ValueError("A task cannot depend on itself")
+
+    task = get_task(db, task_id)
+    depends_on_task = db.get(models.Task, depends_on_id)
+    if not task or not depends_on_task:
+        return None
+
+    # Prevent an immediate two-task cycle (A depends on B, B depends on A).
+    # This is a shallow check, not full cycle detection across a longer
+    # chain — good enough for a personal task tool, and cheap to compute.
+    if task in depends_on_task.depends_on:
+        raise ValueError("That would create a circular dependency")
+
+    if depends_on_task not in task.depends_on:
+        task.depends_on.append(depends_on_task)
+        db.commit()
+        db.refresh(task)
+    return task
+
+
+def remove_dependency(db: Session, task_id: int, depends_on_id: int) -> models.Task | None:
+    task = get_task(db, task_id)
+    depends_on_task = db.get(models.Task, depends_on_id)
+    if not task or not depends_on_task:
+        return None
+    if depends_on_task in task.depends_on:
+        task.depends_on.remove(depends_on_task)
+        db.commit()
+        db.refresh(task)
+    return task
+
+
+# ---------- Attachments (stored in task_metadata JSONB, files on disk) ----------
+
+def add_attachment(db: Session, task_id: int, attachment: dict) -> models.Task | None:
+    task = db.get(models.Task, task_id)
+    if not task:
+        return None
+    # JSONB columns don't auto-detect in-place mutation in SQLAlchemy, so we
+    # reassign the whole dict (rather than task.task_metadata["attachments"].append(...))
+    # to guarantee the ORM notices the change and includes it in the UPDATE.
+    metadata = dict(task.task_metadata or {})
+    attachments = list(metadata.get("attachments", []))
+    attachments.append(attachment)
+    metadata["attachments"] = attachments
+    task.task_metadata = metadata
+    db.commit()
+    db.refresh(task)
+    return task
+
+
+def remove_attachment(db: Session, task_id: int, filename: str) -> models.Task | None:
+    task = db.get(models.Task, task_id)
+    if not task:
+        return None
+    metadata = dict(task.task_metadata or {})
+    attachments = [a for a in metadata.get("attachments", []) if a.get("filename") != filename]
+    metadata["attachments"] = attachments
+    task.task_metadata = metadata
+    db.commit()
+    db.refresh(task)
+    return task
+
+
+# ---------- Analytics ----------
+
+def get_analytics(db: Session, section_id: int | None = None) -> dict:
+    task_query = select(models.Task)
+    if section_id is not None:
+        task_query = task_query.where(models.Task.section_id == section_id)
+    tasks = db.execute(task_query).scalars().all()
+
+    total = len(tasks)
+    by_status = {"todo": 0, "in_progress": 0, "done": 0}
+    by_priority = {"low": 0, "medium": 0, "high": 0, "urgent": 0}
+    overdue = 0
+    today = date.today()
+
+    for t in tasks:
+        by_status[t.status.value] += 1
+        by_priority[t.priority.value] += 1
+        if t.due_date and t.due_date < today and t.status != models.TaskStatus.done:
+            overdue += 1
+
+    subtask_query = select(models.Subtask).join(models.Task)
+    if section_id is not None:
+        subtask_query = subtask_query.where(models.Task.section_id == section_id)
+    subtasks = db.execute(subtask_query).scalars().all()
+    subtasks_done = sum(1 for s in subtasks if s.is_done)
+
+    # Completion trend: tasks marked done, grouped by the day they were last
+    # updated — a rough but useful proxy for "how many tasks finished per day"
+    # without needing a separate completed_at timestamp/history table.
+    completed_by_day: dict[str, int] = {}
+    for t in tasks:
+        if t.status == models.TaskStatus.done:
+            day = t.updated_at.date().isoformat()
+            completed_by_day[day] = completed_by_day.get(day, 0) + 1
+
+    return {
+        "total_tasks": total,
+        "by_status": by_status,
+        "by_priority": by_priority,
+        "completion_rate": round(by_status["done"] / total, 3) if total else 0,
+        "overdue_count": overdue,
+        "subtasks_total": len(subtasks),
+        "subtasks_done": subtasks_done,
+        "completed_by_day": completed_by_day,
+    }

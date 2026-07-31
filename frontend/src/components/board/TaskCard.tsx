@@ -1,8 +1,8 @@
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { format, differenceInCalendarDays } from "date-fns";
-import { Link2, FileText, Puzzle } from "lucide-react";
-import type { Task } from "../../types";
+import { Link2, FileText, Puzzle, Paperclip, Lock } from "lucide-react";
+import type { Task, TaskPriority } from "../../types";
 
 interface TaskCardProps {
   task: Task;
@@ -16,6 +16,13 @@ const STATUS_ACCENT: Record<Task["status"], string> = {
   todo: "border-l-[var(--color-accent-todo)]",
   in_progress: "border-l-[var(--color-accent-progress)]",
   done: "border-l-[var(--color-accent-done)]",
+};
+
+const PRIORITY_DOT: Record<TaskPriority, string> = {
+  low: "bg-zinc-500",
+  medium: "bg-blue-500",
+  high: "bg-orange-500",
+  urgent: "bg-red-500",
 };
 
 function DueBadge({ dueDate }: { dueDate: string | null }) {
@@ -47,6 +54,10 @@ export function TaskCard({ task, onToggleSubtask, onOpen }: TaskCardProps) {
 
   const doneCount = task.subtasks.filter((s) => s.is_done).length;
   const links = task.task_metadata?.links ?? [];
+  const attachments = task.task_metadata?.attachments ?? [];
+  // "Blocked" means at least one dependency isn't done yet — a visual nudge
+  // that this task probably shouldn't be worked on until that clears.
+  const isBlocked = task.depends_on.some((d) => d.status !== "done");
 
   return (
     <div
@@ -60,9 +71,20 @@ export function TaskCard({ task, onToggleSubtask, onOpen }: TaskCardProps) {
         hover:bg-[var(--color-surface-hover)] transition-colors`}
     >
       <div className="flex justify-between items-start gap-2">
-        <h3 className="text-sm font-semibold text-zinc-100 leading-snug">
-          {task.title}
-        </h3>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span
+            title={`Priority: ${task.priority}`}
+            className={`w-1.5 h-1.5 rounded-full shrink-0 ${PRIORITY_DOT[task.priority]}`}
+          />
+          <h3 className="text-sm font-semibold text-zinc-100 leading-snug truncate">
+            {task.title}
+          </h3>
+          {isBlocked && (
+            <span title="Blocked by an unfinished dependency" className="shrink-0">
+              <Lock size={11} className="text-red-400" />
+            </span>
+          )}
+        </div>
         {task.ticket_code && (
           <span className="text-[11px] text-zinc-500 font-mono whitespace-nowrap">
             {task.ticket_code}
@@ -90,6 +112,7 @@ export function TaskCard({ task, onToggleSubtask, onOpen }: TaskCardProps) {
         {links.length > 0 && <Link2 size={13} className="text-blue-400" />}
         {task.description && <FileText size={13} className="text-emerald-400" />}
         {task.subtasks.length > 0 && <Puzzle size={13} className="text-zinc-500" />}
+        {attachments.length > 0 && <Paperclip size={13} className="text-zinc-500" />}
         <div className="ml-auto">
           <DueBadge dueDate={task.due_date} />
         </div>

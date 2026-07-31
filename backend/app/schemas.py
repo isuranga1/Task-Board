@@ -10,11 +10,25 @@ class TaskStatus(str, Enum):
     done = "done"
 
 
+class TaskPriority(str, Enum):
+    low = "low"
+    medium = "medium"
+    high = "high"
+    urgent = "urgent"
+
+
 # ---------- Link (lives inside task_metadata.links, not its own table) ----------
 
 class Link(BaseModel):
     label: str
     url: str
+
+
+class Attachment(BaseModel):
+    filename: str
+    url: str
+    size: int
+    content_type: str
 
 
 class TaskMetadata(BaseModel):
@@ -25,6 +39,7 @@ class TaskMetadata(BaseModel):
     links: list[Link] = []
     tags: list[str] = []
     assignee_avatar_url: str | None = None
+    attachments: list[Attachment] = []
 
 
 # ---------- Subtask ----------
@@ -53,12 +68,24 @@ class SubtaskRead(SubtaskBase):
 
 # ---------- Task ----------
 
+class TaskSummary(BaseModel):
+    """Minimal shape used inside `depends_on` / `blocks` lists — a full
+    TaskRead would recurse into ITS OWN depends_on/blocks and so on
+    infinitely, so dependency lists only ever show id/title/status."""
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    title: str
+    status: TaskStatus
+
+
 class TaskBase(BaseModel):
     title: str
     description: str | None = None
     status: TaskStatus = TaskStatus.todo
+    priority: TaskPriority = TaskPriority.medium
     ticket_code: str | None = None
     due_date: date | None = None
+    remind_at: date | None = None
     subsection_id: int | None = None
     task_metadata: TaskMetadata = TaskMetadata()
 
@@ -73,8 +100,10 @@ class TaskUpdate(BaseModel):
     title: str | None = None
     description: str | None = None
     status: TaskStatus | None = None
+    priority: TaskPriority | None = None
     ticket_code: str | None = None
     due_date: date | None = None
+    remind_at: date | None = None
     subsection_id: int | None = None
     task_metadata: TaskMetadata | None = None
 
@@ -85,7 +114,10 @@ class TaskRead(TaskBase):
     section_id: int
     created_at: datetime
     updated_at: datetime
+    reminder_sent: bool
     subtasks: list[SubtaskRead] = []
+    depends_on: list[TaskSummary] = []
+    blocks: list[TaskSummary] = []
 
 
 # ---------- Subsection ----------
@@ -133,3 +165,16 @@ class SectionRead(SectionBase):
     id: int
     created_at: datetime
     subsections: list[SubsectionRead] = []
+
+
+# ---------- Analytics ----------
+
+class AnalyticsSummary(BaseModel):
+    total_tasks: int
+    by_status: dict[str, int]
+    by_priority: dict[str, int]
+    completion_rate: float
+    overdue_count: int
+    subtasks_total: int
+    subtasks_done: int
+    completed_by_day: dict[str, int]

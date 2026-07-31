@@ -1,14 +1,16 @@
 import type {
   Section,
+  Subsection,
   Task,
   Subtask,
   SectionCreatePayload,
   SubsectionCreatePayload,
   TaskCreatePayload,
   TaskUpdatePayload,
+  AnalyticsSummary,
 } from "../types";
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+export const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
 // Every real request funnels through this one function so error handling
 // (and later: auth headers, logging, etc.) lives in exactly one place.
@@ -38,10 +40,13 @@ export const api = {
     request<void>(`/sections/${id}`, { method: "DELETE" }),
 
   createSubsection: (sectionId: number, payload: SubsectionCreatePayload) =>
-    request(`/sections/${sectionId}/subsections`, {
+    request<Subsection>(`/sections/${sectionId}/subsections`, {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+
+  deleteSubsection: (id: number) =>
+    request<void>(`/subsections/${id}`, { method: "DELETE" }),
 
   // ---------- Tasks ----------
   listTasksForSection: (sectionId: number) =>
@@ -70,4 +75,44 @@ export const api = {
 
   deleteSubtask: (subtaskId: number) =>
     request<void>(`/tasks/subtasks/${subtaskId}`, { method: "DELETE" }),
+
+  // ---------- Dependencies ----------
+  addDependency: (taskId: number, dependsOnId: number) =>
+    request<Task>(`/tasks/${taskId}/dependencies?depends_on_id=${dependsOnId}`, {
+      method: "POST",
+    }),
+
+  removeDependency: (taskId: number, dependsOnId: number) =>
+    request<Task>(`/tasks/${taskId}/dependencies/${dependsOnId}`, {
+      method: "DELETE",
+    }),
+
+  // ---------- Attachments ----------
+  // Uses FormData directly instead of the shared `request()` helper because
+  // file uploads must NOT set Content-Type: application/json — the browser
+  // needs to set its own multipart/form-data boundary header automatically.
+  uploadAttachment: async (taskId: number, file: File): Promise<Task> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await fetch(`${BASE_URL}/tasks/${taskId}/attachments`, {
+      method: "POST",
+      body: formData,
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(`API ${res.status} ${res.statusText}: ${body}`);
+    }
+    return res.json();
+  },
+
+  deleteAttachment: (taskId: number, filename: string) =>
+    request<Task>(`/tasks/${taskId}/attachments/${encodeURIComponent(filename)}`, {
+      method: "DELETE",
+    }),
+
+  // ---------- Analytics ----------
+  getAnalytics: (sectionId?: number) =>
+    request<AnalyticsSummary>(
+      sectionId ? `/analytics/summary?section_id=${sectionId}` : "/analytics/summary"
+    ),
 };

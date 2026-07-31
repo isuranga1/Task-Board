@@ -1,7 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException
+import os
+import uuid
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 
 from .. import crud, schemas
+from ..config import settings
 from ..database import get_db
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -65,3 +70,74 @@ def update_subtask(
 def delete_subtask(subtask_id: int, db: Session = Depends(get_db)):
     if not crud.delete_subtask(db, subtask_id):
         raise HTTPException(status_code=404, detail="Subtask not found")
+
+
+# ---------- Dependencies (blocking relationships) ----------
+
+@router.post("/{task_id}/dependencies", response_model=schemas.TaskRead)
+def add_dependency(task_id: int, depends_on_id: int, db: Session = Depends(get_db)):
+    try:
+        updated = crud.add_dependency(db, task_id, depends_on_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if not updated:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return updated
+
+
+@router.delete("/{task_id}/dependencies/{depends_on_id}", response_model=schemas.TaskRead)
+def remove_dependency(task_id: int, depends_on_id: int, db: Session = Depends(get_db)):
+    updated = crud.remove_dependency(db, task_id, depends_on_id)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return updated
+
+
+# ---------- Attachments (files stored on disk, referenced from task_metadata) ----------
+
+@router.post("/{task_id}/attachments", response_model=schemas.TaskRead)
+async def upload_attachment(
+    task_id: int, file: UploadFile = File(...), db: Session = Depends(get_db)
+):
+    task = crud.get_task(db, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    max_bytes = settings.max_upload_size_mb * 1024 * 1024
+    contents = await file.read()
+    if len(contents) > max_bytes:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File exceeds the {settings.max_upload_size_mb}MB limit",
+        )
+
+    uploads_path = Path(settings.uploads_dir)
+    uploads_path.mkdir(parents=True, exist_ok=True)
+
+    # Prefix with a UUID so two different tasks' "report.pdf" never collide
+    # on disk, while keeping the original filename visible/readable.
+    safe_name = f"{uuid.uuid4().hex}_{file.filename}"
+    dest = uploads_path / safe_name
+    with open(dest, "wb") as f:
+        f.write(contents)
+
+    attachment = {
+        "filename": safe_name,
+        "url": f"/uploads/{safe_name}",
+        "size": len(contents),
+        "content_type": file.content_type or "application/octet-stream",
+    }
+    return crud.add_attachment(db, task_id, attachment)
+
+
+@router.delete("/{task_id}/attachments/{filename}", response_model=schemas.TaskRead)
+def delete_attachment(task_id: int, filename: str, db: Session = Depends(get_db)):
+    updated = crud.remove_attachment(db, task_id, filename)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Task not found")
+    # Best-effort file cleanup — the DB record is the source of truth, so a
+    # failure to delete the physical file shouldn't fail the whole request.
+    file_path = Path(settings.uploads_dir) / filename
+    if file_path.exists():
+        os.remove(file_path)
+    return updated
