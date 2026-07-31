@@ -1,0 +1,31 @@
+name: Deploy to Raspberry Pi
+
+# Optional fully-automatic deploy: on every push to main, join the tailnet
+# as a temporary CI node and SSH into the Pi to run deploy.sh. Requires the
+# one-time setup documented in DEPLOY.md ("Automatic deploys on push").
+# If you'd rather deploy by hand, ignore this file (or delete it) and just
+# SSH in + run ./deploy.sh yourself after pushing.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.PI_TAILSCALE_HOST }}
+          username: ${{ secrets.PI_SSH_USER }}
+          key: ${{ secrets.PI_SSH_PRIVATE_KEY }}
+          script: ${{ secrets.PI_DEPLOY_SCRIPT_PATH }}

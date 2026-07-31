@@ -149,3 +149,6 @@ __pycache__/
 .vscode/settings.json
 *.zip
 *.env
+
+# User-uploaded task attachments — never track these
+backend/uploads/
