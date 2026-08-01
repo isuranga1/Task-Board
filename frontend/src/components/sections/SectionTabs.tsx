@@ -13,7 +13,7 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Plus, X } from "lucide-react";
+import { Plus, X, Pencil } from "lucide-react";
 import type { Section } from "../../types";
 
 interface SectionTabsProps {
@@ -21,6 +21,7 @@ interface SectionTabsProps {
   activeSectionId: number | null;
   onSelect: (id: number) => void;
   onCreate: (name: string) => Promise<void>;
+  onRename: (id: number, name: string) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
   onReorder: (sections: Section[]) => void;
 }
@@ -40,15 +41,23 @@ function SortableTab({
   section,
   isActive,
   onSelect,
+  onRename,
   onDelete,
 }: {
   section: Section;
   isActive: boolean;
   onSelect: () => void;
+  onRename: (name: string) => Promise<void>;
   onDelete: (e: React.MouseEvent) => void;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(section.name);
+
+  // Dragging has to be off while renaming, otherwise the pointer sensor
+  // swallows the clicks/selection you make inside the text input.
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: section.id,
+    disabled: editing,
   });
 
   const style = {
@@ -56,12 +65,59 @@ function SortableTab({
     transition,
   };
 
+  function startEditing(e: React.SyntheticEvent) {
+    e.stopPropagation(); // don't also select the tab
+    setDraft(section.name);
+    setEditing(true);
+  }
+
+  // Called on both submit (Enter) and blur (clicking away) — committing on
+  // blur means you never lose a rename just because you clicked elsewhere.
+  async function commit(e: React.SyntheticEvent) {
+    e.preventDefault();
+    const next = draft.trim();
+    setEditing(false);
+    // Nothing typed, or nothing actually changed — leave the section alone.
+    if (!next || next === section.name) {
+      setDraft(section.name);
+      return;
+    }
+    await onRename(next);
+  }
+
+  if (editing) {
+    return (
+      <form
+        ref={setNodeRef}
+        style={style}
+        onSubmit={commit}
+        className="flex items-center"
+      >
+        <input
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              setDraft(section.name); // discard, and let the blur no-op
+              setEditing(false);
+            }
+          }}
+          onFocus={(e) => e.target.select()}
+          className="glass rounded-full px-4 py-2 text-sm font-medium text-white outline-none focus:border-white/30 w-36"
+        />
+      </form>
+    );
+  }
+
   return (
     <button
       ref={setNodeRef}
       {...attributes}
       {...listeners}
       onClick={onSelect}
+      onDoubleClick={startEditing}
       className={`group flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all cursor-grab active:cursor-grabbing touch-none
         ${isDragging ? "opacity-40" : ""}
         ${isActive ? "glass text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}
@@ -76,10 +132,20 @@ function SortableTab({
       )}
       {section.name}
       {/* Only visible on hover — keeps the tab bar uncluttered until you
-          actually mean to delete something. */}
+          actually mean to rename or delete something. Double-clicking the
+          tab renames too; this icon is just the discoverable version of it. */}
+      <span
+        role="button"
+        onClick={startEditing}
+        title="Rename space"
+        className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-indigo-300 transition-opacity"
+      >
+        <Pencil size={11} />
+      </span>
       <span
         role="button"
         onClick={onDelete}
+        title="Delete space"
         className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-red-300 transition-opacity"
       >
         <X size={12} />
@@ -93,6 +159,7 @@ export function SectionTabs({
   activeSectionId,
   onSelect,
   onCreate,
+  onRename,
   onDelete,
   onReorder,
 }: SectionTabsProps) {
@@ -144,6 +211,7 @@ export function SectionTabs({
               section={section}
               isActive={section.id === activeSectionId}
               onSelect={() => onSelect(section.id)}
+              onRename={(name) => onRename(section.id, name)}
               onDelete={(e) => handleDelete(e, section)}
             />
           ))}

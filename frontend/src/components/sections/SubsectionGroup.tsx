@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Plus, ChevronDown, ChevronRight, X, GripVertical } from "lucide-react";
+import { Plus, ChevronDown, ChevronRight, X, GripVertical, Pencil } from "lucide-react";
 import type { Subsection, Task } from "../../types";
 import { Board } from "../board/Board";
 
@@ -11,6 +11,7 @@ interface SubsectionGroupProps {
   onToggleSubtask: (taskId: number, subtaskId: number, isDone: boolean) => void;
   onAddTask: (title: string) => void;
   onOpenTask: (task: Task) => void;
+  onRenameGroup: (subsectionId: number, name: string) => void;
   onDeleteGroup: (subsectionId: number) => void;
 }
 
@@ -20,11 +21,14 @@ export function SubsectionGroup({
   onToggleSubtask,
   onAddTask,
   onOpenTask,
+  onRenameGroup,
   onDeleteGroup,
 }: SubsectionGroupProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [title, setTitle] = useState("");
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState(subsection?.name ?? "");
 
   // The "General" bucket isn't a real subsection, so it's always called with
   // `disabled: true` here — the hook still has to be called every render
@@ -46,6 +50,25 @@ export function SubsectionGroup({
     onAddTask(title.trim());
     setTitle("");
     setIsAdding(false);
+  }
+
+  function startEditingName() {
+    if (!subsection) return; // "General" isn't a real group, so nothing to rename
+    setNameDraft(subsection.name);
+    setEditingName(true);
+  }
+
+  // Commits on Enter or on blur, so clicking away saves rather than discards.
+  function commitName(e: React.SyntheticEvent) {
+    e.preventDefault();
+    if (!subsection) return;
+    const next = nameDraft.trim();
+    setEditingName(false);
+    if (!next || next === subsection.name) {
+      setNameDraft(subsection.name);
+      return;
+    }
+    onRenameGroup(subsection.id, next);
   }
 
   function handleDeleteGroup() {
@@ -79,9 +102,31 @@ export function SubsectionGroup({
         >
           {collapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
         </button>
-        <h3 className="text-zinc-200 font-semibold text-sm tracking-wide">
-          {subsection?.name ?? "General"}
-        </h3>
+        {editingName ? (
+          <form onSubmit={commitName}>
+            <input
+              autoFocus
+              value={nameDraft}
+              onChange={(e) => setNameDraft(e.target.value)}
+              onBlur={commitName}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  setNameDraft(subsection?.name ?? ""); // discard; the blur then no-ops
+                  setEditingName(false);
+                }
+              }}
+              onFocus={(e) => e.target.select()}
+              className="glass rounded-lg px-2 py-0.5 text-sm font-semibold text-white outline-none focus:border-white/30 w-48"
+            />
+          </form>
+        ) : (
+          <h3
+            onDoubleClick={startEditingName}
+            className="text-zinc-200 font-semibold text-sm tracking-wide"
+          >
+            {subsection?.name ?? "General"}
+          </h3>
+        )}
         <span className="text-zinc-500 text-xs bg-white/5 rounded-full px-1.5 py-0.5">
           {tasks.length}
         </span>
@@ -110,16 +155,26 @@ export function SubsectionGroup({
         )}
 
         {/* The "General" bucket isn't a real subsection, so it can't be
-            deleted — only show this for actual named groups. Hidden until
-            hover so the header doesn't look cluttered by default. */}
+            renamed or deleted — only show these for actual named groups.
+            Hidden until hover so the header doesn't look cluttered by
+            default. Double-clicking the title renames too. */}
         {subsection && (
-          <button
-            onClick={handleDeleteGroup}
-            className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 transition-opacity ml-auto"
-            title="Delete group"
-          >
-            <X size={14} />
-          </button>
+          <div className="flex items-center gap-2 ml-auto">
+            <button
+              onClick={startEditingName}
+              className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-indigo-300 transition-opacity"
+              title="Rename group"
+            >
+              <Pencil size={13} />
+            </button>
+            <button
+              onClick={handleDeleteGroup}
+              className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 transition-opacity"
+              title="Delete group"
+            >
+              <X size={14} />
+            </button>
+          </div>
         )}
       </div>
 

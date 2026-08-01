@@ -20,6 +20,7 @@ interface SectionBoardProps {
   onToggleSubtask: (taskId: number, subtaskId: number, isDone: boolean) => void;
   onAddTask: (subsectionId: number | null, title: string) => void;
   onOpenTask: (task: Task) => void;
+  onRenameGroup: (subsectionId: number, name: string) => void;
   onDeleteGroup: (subsectionId: number) => void;
   onReorderSubsections: (newOrder: Subsection[]) => void;
 }
@@ -36,6 +37,7 @@ export function SectionBoard({
   onToggleSubtask,
   onAddTask,
   onOpenTask,
+  onRenameGroup,
   onDeleteGroup,
   onReorderSubsections,
 }: SectionBoardProps) {
@@ -115,6 +117,7 @@ export function SectionBoard({
           onToggleSubtask={onToggleSubtask}
           onAddTask={(title) => onAddTask(null, title)}
           onOpenTask={onOpenTask}
+          onRenameGroup={onRenameGroup}
           onDeleteGroup={onDeleteGroup}
         />
       )}
@@ -128,6 +131,7 @@ export function SectionBoard({
             onToggleSubtask={onToggleSubtask}
             onAddTask={(title) => onAddTask(sub.id, title)}
             onOpenTask={onOpenTask}
+            onRenameGroup={onRenameGroup}
             onDeleteGroup={onDeleteGroup}
           />
         ))}

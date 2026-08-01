@@ -78,6 +78,45 @@ export function Dashboard() {
     );
   }
 
+  // Renames deliberately send only `name` and leave `slug` alone: the slug is
+  // unique in the DB, and re-slugifying on every rename would 500 the moment
+  // two spaces ended up with the same name. Nothing in the UI displays the
+  // slug, so letting it keep its original value is harmless.
+  async function handleRenameSection(id: number, name: string) {
+    const previous = sections;
+    setSections((current) => current.map((s) => (s.id === id ? { ...s, name } : s)));
+    try {
+      const updated = await api.updateSection(id, { name });
+      setSections((current) => current.map((s) => (s.id === id ? updated : s)));
+    } catch (err) {
+      setSections(previous);
+      setSectionError(err instanceof Error ? err.message : "Failed to rename space");
+    }
+  }
+
+  async function handleRenameSubsection(subsectionId: number, name: string) {
+    if (activeSectionId === null) return;
+    const previous = sections;
+    setSections((current) =>
+      current.map((s) =>
+        s.id === activeSectionId
+          ? {
+              ...s,
+              subsections: s.subsections.map((sub) =>
+                sub.id === subsectionId ? { ...sub, name } : sub
+              ),
+            }
+          : s
+      )
+    );
+    try {
+      await api.updateSubsection(subsectionId, { name });
+    } catch (err) {
+      setSections(previous);
+      setSectionError(err instanceof Error ? err.message : "Failed to rename group");
+    }
+  }
+
   async function handleDeleteSection(id: number) {
     await api.deleteSection(id);
     setSections((current) => {
@@ -170,6 +209,7 @@ export function Dashboard() {
         activeSectionId={activeSectionId}
         onSelect={setActiveSectionId}
         onCreate={handleCreateSection}
+        onRename={handleRenameSection}
         onDelete={handleDeleteSection}
         onReorder={handleReorderSections}
       />
@@ -229,6 +269,7 @@ export function Dashboard() {
             onToggleSubtask={toggleSubtask}
             onAddTask={(subId, title) => createTask(title, subId)}
             onOpenTask={(task) => setOpenTaskId(task.id)}
+            onRenameGroup={handleRenameSubsection}
             onDeleteGroup={handleDeleteSubsection}
             onReorderSubsections={handleReorderSubsections}
           />
