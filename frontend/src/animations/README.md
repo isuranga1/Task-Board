@@ -21,6 +21,7 @@ animations/
 | `columnEnter`  | To Do / Doing / Done | rise in when you switch space or group                   |
 | `dropTarget`   | columns              | dashed ring while a card is dragged over                 |
 | `countBump`    | column count chip    | bump when the number changes                             |
+| `checkStrike`  | subtask labels       | line sweeps across when ticked, retracts when unticked   |
 | `stagger`      | cards + columns      | entering items cascade instead of appearing at once      |
 
 To Do / Doing / Done each flash their own accent color (`--color-accent-todo`,

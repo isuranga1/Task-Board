@@ -6,6 +6,7 @@ import { LinkRow } from "./LinkRow";
 import { EmbedPreview } from "./EmbedPreview";
 import { extractUrls } from "../../utils/extractUrls";
 import { BASE_URL } from "../../api/client";
+import { strikeMotionClass } from "../../animations";
 
 interface TaskDetailModalProps {
   task: Task;
@@ -18,6 +19,9 @@ interface TaskDetailModalProps {
   onDeleteAttachment: (filename: string) => Promise<void>;
   onAddDependency: (dependsOnId: number) => Promise<void>;
   onRemoveDependency: (dependsOnId: number) => Promise<void>;
+  onAddSubtask: (title: string) => Promise<void>;
+  onToggleSubtask: (subtaskId: number, isDone: boolean) => Promise<void>;
+  onDeleteSubtask: (subtaskId: number) => Promise<void>;
 }
 
 const PRIORITY_STYLES: Record<TaskPriority, string> = {
@@ -49,6 +53,9 @@ export function TaskDetailModal({
   onDeleteAttachment,
   onAddDependency,
   onRemoveDependency,
+  onAddSubtask,
+  onToggleSubtask,
+  onDeleteSubtask,
 }: TaskDetailModalProps) {
   // Local editable copy — nothing is sent to the API until "Save changes"
   // is clicked. This avoids firing a PATCH request on every keystroke.
@@ -69,6 +76,7 @@ export function TaskDetailModal({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [depPickerId, setDepPickerId] = useState<string>("");
+  const [newSubtask, setNewSubtask] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const descriptionUrls = extractUrls(description).filter(
@@ -144,6 +152,43 @@ export function TaskDetailModal({
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
+
+  // Checklist items mutate immediately rather than waiting for "Save", the
+  // same way attachments and dependencies do — they're their own API calls,
+  // not part of this task's field set, and ticking something off should feel
+  // instant rather than provisional.
+  async function handleAddSubtask(e: React.FormEvent) {
+    e.preventDefault();
+    const title = newSubtask.trim();
+    if (!title) return;
+    setNewSubtask(""); // clear first so you can keep typing the next item straight away
+    try {
+      await onAddSubtask(title);
+    } catch (err) {
+      setNewSubtask(title); // put it back rather than silently losing what was typed
+      setError(err instanceof Error ? err.message : "Failed to add checklist item");
+    }
+  }
+
+  async function handleToggleSubtask(subtaskId: number, isDone: boolean) {
+    try {
+      await onToggleSubtask(subtaskId, isDone);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update checklist item");
+    }
+  }
+
+  async function handleDeleteSubtask(subtaskId: number) {
+    try {
+      await onDeleteSubtask(subtaskId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete checklist item");
+    }
+  }
+
+  const subtaskDoneCount = task.subtasks.filter((s) => s.is_done).length;
+  const subtaskProgress =
+    task.subtasks.length === 0 ? 0 : (subtaskDoneCount / task.subtasks.length) * 100;
 
   // Candidates for "depends on": every other task in the section, minus
   // whatever it already depends on (no point offering a duplicate).
@@ -255,6 +300,80 @@ export function TaskDetailModal({
               ))}
             </div>
           )}
+        </div>
+
+        {/* ---------- Checklist ---------- */}
+        <div className="mb-4">
+          <label className="text-xs text-zinc-400 block mb-1">
+            Checklist{" "}
+            {task.subtasks.length > 0 && (
+              <span className="text-zinc-600">
+                — {subtaskDoneCount}/{task.subtasks.length} done
+              </span>
+            )}
+          </label>
+
+          {task.subtasks.length > 0 && (
+            <div className="h-1 rounded-full bg-white/5 overflow-hidden mb-2">
+              <div
+                className="h-full bg-emerald-400/70 rounded-full transition-[width] duration-300 ease-out"
+                style={{ width: `${subtaskProgress}%` }}
+              />
+            </div>
+          )}
+
+          {task.subtasks.length === 0 ? (
+            <p className="text-xs text-zinc-500 italic mb-2">
+              Nothing to tick off yet — break this task into steps below.
+            </p>
+          ) : (
+            <div className="space-y-1.5 mb-2">
+              {task.subtasks.map((subtask) => (
+                <div key={subtask.id} className={`${rowClass} group`}>
+                  <input
+                    type="checkbox"
+                    checked={subtask.is_done}
+                    onChange={(e) => handleToggleSubtask(subtask.id, e.target.checked)}
+                    className="accent-emerald-500 shrink-0"
+                  />
+                  {/* The strike lives on an inner inline span so the line hugs
+                      the text instead of stretching across the whole row. */}
+                  <span className="text-xs flex-1 min-w-0">
+                    <span
+                      className={`${strikeMotionClass(subtask.is_done)} ${
+                        subtask.is_done ? "text-zinc-500" : "text-zinc-200"
+                      }`}
+                    >
+                      {subtask.title}
+                    </span>
+                  </span>
+                  <button
+                    onClick={() => handleDeleteSubtask(subtask.id)}
+                    className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-rose-300 shrink-0 transition-opacity"
+                    title="Delete item"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <form onSubmit={handleAddSubtask} className="flex gap-2">
+            <input
+              value={newSubtask}
+              onChange={(e) => setNewSubtask(e.target.value)}
+              placeholder="Add a step and press Enter…"
+              className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-white/30 transition-colors"
+            />
+            <button
+              type="submit"
+              disabled={!newSubtask.trim()}
+              className="text-xs text-indigo-300 hover:text-indigo-200 disabled:opacity-30 shrink-0 transition-colors"
+            >
+              Add
+            </button>
+          </form>
         </div>
 
         <div className="mb-4">

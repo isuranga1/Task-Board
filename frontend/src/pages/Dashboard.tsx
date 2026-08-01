@@ -25,7 +25,9 @@ export function Dashboard() {
     updateTask,
     createTask,
     deleteTask,
+    addSubtask,
     toggleSubtask,
+    deleteSubtask,
     uploadAttachment,
     deleteAttachment,
     addDependency,
@@ -299,6 +301,11 @@ export function Dashboard() {
           onRemoveDependency={(dependsOnId) =>
             removeDependency(openTask.id, dependsOnId).then(() => {})
           }
+          onAddSubtask={(title) => addSubtask(openTask.id, title).then(() => {})}
+          onToggleSubtask={(subtaskId, isDone) =>
+            toggleSubtask(openTask.id, subtaskId, isDone)
+          }
+          onDeleteSubtask={(subtaskId) => deleteSubtask(openTask.id, subtaskId)}
         />
       )}
     </div>

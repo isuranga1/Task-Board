@@ -3,7 +3,12 @@ import { useDraggable } from "@dnd-kit/core";
 import { format, differenceInCalendarDays } from "date-fns";
 import { Link2, FileText, Puzzle, Paperclip, Lock, Clock } from "lucide-react";
 import type { Task, TaskPriority } from "../../types";
-import { cardMotionClass, staggerIndex, useCardMotion } from "../../animations";
+import {
+  cardMotionClass,
+  staggerIndex,
+  strikeMotionClass,
+  useCardMotion,
+} from "../../animations";
 
 interface TaskCardProps {
   task: Task;
@@ -174,9 +179,9 @@ function CardBody({
                   className="accent-emerald-500"
                 />
                 <span
-                  className={
-                    subtask.is_done ? "line-through text-zinc-600" : "text-zinc-300"
-                  }
+                  className={`${strikeMotionClass(subtask.is_done)} ${
+                    subtask.is_done ? "text-zinc-600" : "text-zinc-300"
+                  }`}
                 >
                   {subtask.title}
                 </span>

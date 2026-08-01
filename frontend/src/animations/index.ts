@@ -37,6 +37,8 @@ export const motionFlags = {
   dropTarget: true,
   /** The task-count chip bumps when the number changes. */
   countBump: true,
+  /** Ticking off a subtask sweeps a line across it instead of snapping one on. */
+  checkStrike: true,
   /** Entering cards/columns cascade instead of appearing all at once. */
   stagger: true,
 };
@@ -86,6 +88,16 @@ export function columnMotionClass(isOver: boolean): string {
     if (motionFlags.stagger) classes.push("motion-stagger");
   }
   return classes.join(" ");
+}
+
+/**
+ * Classes for a subtask's label. Falls back to a plain `line-through` when the
+ * animation is switched off, because a ticked-off subtask has to *look* ticked
+ * off whether or not anything is animating.
+ */
+export function strikeMotionClass(isDone: boolean): string {
+  if (!motionFlags.checkStrike) return isDone ? "line-through" : "";
+  return isDone ? "motion-strike motion-strike-on" : "motion-strike";
 }
 
 /** Classes for the little task-count chip next to a column title. */

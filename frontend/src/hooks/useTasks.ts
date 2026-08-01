@@ -93,6 +93,27 @@ export function useTasks(sectionId: number | null) {
     setTasks((current) => current.filter((t) => t.id !== taskId));
   }, []);
 
+  const addSubtask = useCallback(async (taskId: number, title: string) => {
+    const created = await api.createSubtask(taskId, title);
+    setTasks((current) =>
+      current.map((t) =>
+        t.id === taskId ? { ...t, subtasks: [...t.subtasks, created] } : t
+      )
+    );
+    return created;
+  }, []);
+
+  const deleteSubtask = useCallback(async (taskId: number, subtaskId: number) => {
+    await api.deleteSubtask(subtaskId);
+    setTasks((current) =>
+      current.map((t) =>
+        t.id === taskId
+          ? { ...t, subtasks: t.subtasks.filter((s) => s.id !== subtaskId) }
+          : t
+      )
+    );
+  }, []);
+
   const toggleSubtask = useCallback(
     async (taskId: number, subtaskId: number, isDone: boolean) => {
       const updated = await api.toggleSubtask(subtaskId, isDone);
@@ -148,7 +169,9 @@ export function useTasks(sectionId: number | null) {
     updateTask,
     createTask,
     deleteTask,
+    addSubtask,
     toggleSubtask,
+    deleteSubtask,
     uploadAttachment,
     deleteAttachment,
     addDependency,

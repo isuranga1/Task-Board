@@ -25,6 +25,8 @@
   --motion-breathe-duration: 3s; /* "this is being worked on right now" pulse */
   --motion-bump-duration: 320ms; /* column count ticking up/down */
 
+  --motion-strike-duration: 220ms; /* line sweeping across a ticked-off subtask */
+
   --motion-stagger-step: 45ms; /* per-card delay down a column */
   --motion-stagger-max: 6; /* stop staggering after this many cards */
 }
@@ -166,6 +168,34 @@
 }
 
 /* ---------------------------------------------------------------------------
+   Checklist motion
+   -------------------------------------------------------------------------- */
+
+/* Ticking off a subtask draws a line across it instead of snapping one on.
+   CSS can't animate `line-through`, so this is a pseudo-element rule scaled
+   from 0 — and because it's a transition rather than an animation, un-ticking
+   retracts the line back the way it came for free. */
+.motion-strike {
+  position: relative;
+}
+.motion-strike::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 55%;
+  width: 100%;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--motion-strike-duration) var(--motion-enter-ease);
+  pointer-events: none;
+}
+.motion-strike-on::after {
+  transform: scaleX(1);
+}
+
+/* ---------------------------------------------------------------------------
    Column motion
    -------------------------------------------------------------------------- */
 
@@ -217,6 +247,12 @@
   }
 
   .motion-column {
+    transition: none;
+  }
+
+  /* The strike itself must still be visible — a ticked-off subtask has to
+     read as ticked off. It just appears instantly instead of sweeping. */
+  .motion-strike::after {
     transition: none;
   }
 }
