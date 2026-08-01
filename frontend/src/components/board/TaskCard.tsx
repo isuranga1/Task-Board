@@ -3,11 +3,14 @@ import { useDraggable } from "@dnd-kit/core";
 import { format, differenceInCalendarDays } from "date-fns";
 import { Link2, FileText, Puzzle, Paperclip, Lock, Clock } from "lucide-react";
 import type { Task, TaskPriority } from "../../types";
+import { cardMotionClass, staggerIndex, useCardMotion } from "../../animations";
 
 interface TaskCardProps {
   task: Task;
   onToggleSubtask: (subtaskId: number, isDone: boolean) => void;
   onOpen: (task: Task) => void;
+  /** Position in its column — only used to stagger the entrance. */
+  index?: number;
 }
 
 // Column accent colors — a soft glow on the left edge instead of a hard line.
@@ -188,11 +191,15 @@ function CardBody({
   );
 }
 
-export function TaskCard({ task, onToggleSubtask, onOpen }: TaskCardProps) {
+export function TaskCard({ task, onToggleSubtask, onOpen, index = 0 }: TaskCardProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: task.id,
     data: { type: "task" as const, status: task.status },
   });
+
+  // Moving a card between columns remounts it, so this is where the board finds
+  // out a task changed status — see animations/hooks.ts.
+  const motion = useCardMotion(task.id, task.status);
 
   return (
     <div
@@ -200,8 +207,10 @@ export function TaskCard({ task, onToggleSubtask, onOpen }: TaskCardProps) {
       {...listeners}
       {...attributes}
       onClick={() => onOpen(task)}
+      style={staggerIndex(index)}
       className={`glass glass-hover border-l-[3px] ${STATUS_ACCENT[task.status]}
         rounded-2xl p-3.5 mb-3 cursor-grab active:cursor-grabbing
+        ${cardMotionClass(motion, task.status)}
         ${isDragging ? "opacity-30" : ""}`}
     >
       <CardBody task={task} onToggleSubtask={onToggleSubtask} />

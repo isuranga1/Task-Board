@@ -23,9 +23,10 @@ export function Board({ subsectionId, tasks, onToggleSubtask, onOpenTask }: Boar
 
   return (
     <div className="flex gap-4 overflow-x-auto pb-4">
-      {COLUMNS.map((col) => (
+      {COLUMNS.map((col, i) => (
         <Column
           key={col.status}
+          index={i}
           dropId={`${subsectionKey}::${col.status}`}
           title={col.title}
           tasks={tasks.filter((t) => t.status === col.status)}

@@ -1,0 +1,222 @@
+/* ============================================================================
+   Motion module — every animation in the app is defined in this one file.
+
+   To retune the feel of the board, you only ever edit here: change a duration,
+   an easing, a distance, and it applies everywhere that animation is used.
+   To turn an animation OFF entirely, flip its flag in ./index.ts instead —
+   that stops the class from being applied at all, which is cheaper than
+   overriding it here.
+
+   Naming: every class and keyframe is prefixed `motion-` so nothing in this
+   file can collide with Tailwind utilities or the app's own classes.
+   ========================================================================== */
+
+/* ---------------------------------------------------------------------------
+   Tunables. These are the knobs worth reaching for first.
+   -------------------------------------------------------------------------- */
+:root {
+  --motion-enter-duration: 260ms;
+  --motion-enter-distance: 6px;
+  --motion-enter-ease: cubic-bezier(0.22, 1, 0.36, 1); /* gentle overshoot-free ease-out */
+
+  --motion-arrive-duration: 420ms; /* the pop when a card lands in a new column */
+  --motion-ring-duration: 700ms; /* the accent ring that expands out of it */
+
+  --motion-breathe-duration: 3s; /* "this is being worked on right now" pulse */
+  --motion-bump-duration: 320ms; /* column count ticking up/down */
+
+  --motion-stagger-step: 45ms; /* per-card delay down a column */
+  --motion-stagger-max: 6; /* stop staggering after this many cards */
+}
+
+/* ---------------------------------------------------------------------------
+   Keyframes
+   -------------------------------------------------------------------------- */
+
+/* Separate opacity-only and transform-only fades exist because a card that
+   ARRIVES needs to fade in while `motion-pop` owns its transform — two
+   animations can't both drive transform, the last one silently wins. */
+@keyframes motion-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes motion-rise {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-enter-distance)) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes motion-pop {
+  0% {
+    transform: scale(0.97);
+  }
+  55% {
+    transform: scale(1.03);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Uses `outline` rather than `box-shadow` on purpose: .glass already owns
+   box-shadow, and animating it would clobber the card's glass depth for the
+   duration of the ring. Outline is a free layer nothing else is using. */
+@keyframes motion-ring {
+  0% {
+    outline-color: var(--motion-accent);
+    outline-width: 0;
+    outline-offset: 0;
+  }
+  30% {
+    outline-color: var(--motion-accent);
+    outline-width: 2px;
+    outline-offset: 3px;
+  }
+  100% {
+    outline-color: transparent;
+    outline-width: 2px;
+    outline-offset: 8px;
+  }
+}
+
+@keyframes motion-breathe {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.95;
+  }
+}
+
+@keyframes motion-bump {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.22);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Accent colors — which color a card's arrival ring flashes.
+   Set as a variable so the keyframes above stay color-agnostic.
+   -------------------------------------------------------------------------- */
+.motion-accent-todo {
+  --motion-accent: var(--color-accent-todo);
+}
+.motion-accent-progress {
+  --motion-accent: var(--color-accent-progress);
+}
+.motion-accent-done {
+  --motion-accent: var(--color-accent-done);
+}
+
+/* ---------------------------------------------------------------------------
+   Card motion
+   -------------------------------------------------------------------------- */
+
+/* A card rendering for the first time (page load, new task, switching space). */
+.motion-enter {
+  animation: motion-rise var(--motion-enter-duration) var(--motion-enter-ease) backwards;
+}
+
+/* A card that just changed status — it landed here from another column, so it
+   gets the pop + a ring in its new column's color. Dragging a card already
+   remounts it, which is what lets these be pure CSS with no timers. */
+.motion-arrive {
+  animation:
+    motion-fade var(--motion-enter-duration) var(--motion-enter-ease) backwards,
+    motion-pop var(--motion-arrive-duration) var(--motion-enter-ease) backwards,
+    motion-ring var(--motion-ring-duration) ease-out backwards;
+  outline: 0 solid transparent; /* gives motion-ring something to animate from */
+}
+
+/* Slow glow on the left edge of anything currently in "Doing". Lives on a
+   pseudo-element rather than the card so it can loop forever without fighting
+   .motion-enter / .motion-arrive for the card's own `animation` property. */
+.motion-active {
+  position: relative;
+}
+.motion-active::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -3px;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--color-accent-progress);
+  filter: blur(3px);
+  pointer-events: none;
+  animation: motion-breathe var(--motion-breathe-duration) ease-in-out infinite;
+}
+
+/* ---------------------------------------------------------------------------
+   Column motion
+   -------------------------------------------------------------------------- */
+
+.motion-column-enter {
+  animation: motion-rise var(--motion-enter-duration) var(--motion-enter-ease) backwards;
+}
+
+/* Drop affordance while a card is dragged over a column. A transition, not an
+   animation — it needs to hold as long as the pointer is there. */
+.motion-column {
+  transition: outline-color 150ms ease;
+  outline: 1.5px dashed transparent;
+  outline-offset: -6px;
+}
+.motion-column-over {
+  outline-color: rgba(255, 255, 255, 0.22);
+}
+
+/* The little task-count chip, replayed whenever the number changes. */
+.motion-bump {
+  display: inline-block;
+  animation: motion-bump var(--motion-bump-duration) var(--motion-enter-ease);
+}
+
+/* ---------------------------------------------------------------------------
+   Stagger — set `--motion-i` to an index and entering items cascade instead of
+   all appearing at once. Capped so a long column doesn't crawl in.
+   -------------------------------------------------------------------------- */
+.motion-stagger {
+  animation-delay: calc(min(var(--motion-i, 0), var(--motion-stagger-max)) * var(--motion-stagger-step));
+}
+
+/* ---------------------------------------------------------------------------
+   Accessibility. Anyone who has asked their OS to reduce motion gets the
+   board with no movement at all — states still read correctly, they just
+   don't animate into place.
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .motion-enter,
+  .motion-arrive,
+  .motion-column-enter,
+  .motion-bump,
+  .motion-active::after {
+    animation: none;
+  }
+
+  .motion-active::after {
+    opacity: 0.6; /* keep the "in progress" cue, just hold it still */
+  }
+
+  .motion-column {
+    transition: none;
+  }
+}
