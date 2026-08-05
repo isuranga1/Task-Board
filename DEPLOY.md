@@ -382,6 +382,12 @@ revokes the grant with Google.
   **root** `.env` (not `backend/.env`, which Docker doesn't read) and restart
   with `docker compose up -d backend`. Note these must be `KEY=value` lines —
   a stray label like `Client ID abc123` is silently ignored by dotenv.
+- **"That sign-in link expired or didn't come from here"** — the `state` sent
+  back by Google didn't verify. Now that state is signed rather than held in
+  memory, a backend restart mid-consent no longer causes this; the remaining
+  causes are taking more than 30 minutes on the consent screen, or
+  `GOOGLE_CLIENT_SECRET` changing between clicking Connect and being
+  redirected back (the secret is what signs the state). Click Connect again.
 - **"Google didn't return a refresh token"** — Google only issues one on a
   fresh grant. Remove the app at
   [myaccount.google.com/permissions](https://myaccount.google.com/permissions),

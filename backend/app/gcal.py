@@ -11,6 +11,8 @@ task deadlines, it never writes to your calendar. Asking for write access we
 don't use would be a worse consent screen for no benefit.
 """
 
+import hashlib
+import hmac
 import logging
 import secrets
 import time
@@ -45,29 +47,71 @@ class GoogleCalendarError(Exception):
 
 # ---------- CSRF state ----------
 #
-# In-memory rather than in the DB on purpose: these live for the ~20 seconds
-# between "click Connect" and "Google redirects back". A backend restart in
-# that window just means clicking Connect again, which is a better trade than
-# a table that needs its own cleanup job. Single-worker deployment (see the
-# Dockerfile's uvicorn invocation) is what makes a process-local dict sound.
+# The `state` parameter proves a callback came from a consent flow *this server*
+# started, rather than an attacker's link. It's HMAC-signed rather than held in
+# memory: an earlier version kept a dict of pending states, which broke in
+# deployment because the backend container restarts on every `./deploy.sh` (and
+# on every push, via .github/workflows/deploy.yml). Any restart between clicking
+# Connect and Google redirecting back dropped the pending state, and the user
+# got "that sign-in link expired" with nothing actually wrong.
+#
+# Signing removes the shared-memory requirement entirely: the callback can be
+# served by a restarted process, a second worker, or a different container, and
+# still verify a state it never issued. It also can't be filled up by anyone
+# spamming /gcal/auth-url, since nothing is retained per request.
+#
+# The trade is that a state stays valid for its whole TTL instead of being
+# strictly single-use. That's the standard signed-state design and it's the
+# right call here: replaying a state is only useful to someone who already holds
+# the matching one-time `code`, which Google itself will not redeem twice.
 
-_pending_states: dict[str, float] = {}
-_STATE_TTL = 600  # 10 minutes
+_STATE_TTL = 1800  # 30 minutes — a human clicking through Google's consent
+                   # screen, unverified-app warning and account chooser can
+                   # easily take several minutes.
+
+
+def _state_key() -> bytes:
+    """Signing key, derived from the OAuth client secret.
+
+    Reusing that secret means there's no extra key to configure or rotate, and
+    it already has exactly the right property: known to this server, and to
+    nobody who might forge a callback.
+    """
+    return hashlib.sha256(
+        f"gcal-state:{settings.google_client_secret}".encode()
+    ).digest()
+
+
+def _sign(payload: str) -> str:
+    return hmac.new(_state_key(), payload.encode(), hashlib.sha256).hexdigest()
 
 
 def _new_state() -> str:
-    now = time.time()
-    for state, created in list(_pending_states.items()):
-        if now - created > _STATE_TTL:
-            del _pending_states[state]
-    state = secrets.token_urlsafe(24)
-    _pending_states[state] = now
-    return state
+    # The nonce makes each state unique even within the same second, so two
+    # tabs mid-consent can't collide on an identical string.
+    payload = f"{int(time.time())}.{secrets.token_urlsafe(12)}"
+    return f"{payload}.{_sign(payload)}"
 
 
 def _consume_state(state: str) -> bool:
-    created = _pending_states.pop(state, None)
-    return created is not None and (time.time() - created) <= _STATE_TTL
+    payload, _, signature = state.rpartition(".")
+    if not payload or not signature:
+        return False
+
+    # compare_digest rather than == so a forged signature can't be recovered
+    # byte-by-byte by timing the comparison.
+    if not hmac.compare_digest(signature, _sign(payload)):
+        return False
+
+    issued_at, _, _nonce = payload.partition(".")
+    try:
+        age = time.time() - int(issued_at)
+    except ValueError:
+        return False
+
+    # Negative age means a clock moved backwards; treat it as invalid rather
+    # than trusting a timestamp from the future.
+    return 0 <= age <= _STATE_TTL
 
 
 # ---------- OAuth ----------
