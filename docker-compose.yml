@@ -33,6 +33,13 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM: ${SMTP_FROM:-}
       REMINDER_TO_EMAIL: ${REMINDER_TO_EMAIL:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
+      # Where the OAuth callback sends the browser back to — the frontend's
+      # origin. Falls back to CORS_ORIGINS' intent by defaulting to the same
+      # host you serve the UI from; set it explicitly in .env.
+      FRONTEND_URL: ${FRONTEND_URL:-}
     volumes:
       - uploads:/app/uploads
     ports:

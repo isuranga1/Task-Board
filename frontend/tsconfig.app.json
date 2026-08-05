@@ -22,5 +22,9 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  // Tests are excluded here because they run in Node, not the browser, and
+  // pulling Node's globals into the app project would let them slip into
+  // shipped code unnoticed. They're typechecked by tsconfig.test.json instead.
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }

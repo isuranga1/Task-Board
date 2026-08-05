@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .config import settings
-from .routers import sections, subsections, tasks, analytics
+from .routers import sections, subsections, tasks, analytics, gcal
 from .reminders import start_scheduler
 
 app = FastAPI(title="Task Dashboard API")
@@ -22,6 +22,7 @@ app.include_router(sections.router)
 app.include_router(subsections.router)
 app.include_router(tasks.router)
 app.include_router(analytics.router)
+app.include_router(gcal.router)
 
 # Serve uploaded attachments (PDFs, images, etc.) directly — the DB only ever
 # stores the /uploads/<filename> path, never the file bytes themselves.

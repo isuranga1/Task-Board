@@ -113,6 +113,40 @@ def get_tasks_for_section(db: Session, section_id: int) -> list[models.Task]:
     return db.execute(stmt).scalars().all()
 
 
+def get_all_tasks(
+    db: Session,
+    due_from: date | None = None,
+    due_to: date | None = None,
+) -> list[models.Task]:
+    """Every task across every section, for the deadline list and calendar.
+
+    Sorted so undated tasks land last: Postgres puts NULLs first on an ASC
+    sort by default, which would bury the actually-urgent dated tasks under
+    everything that has no deadline at all.
+
+    The date window is optional and only ever narrows dated tasks — a request
+    for "this month" still returns undated tasks, because the calendar's
+    "no deadline" bucket needs them regardless of which month is on screen.
+    """
+    stmt = select(models.Task).options(
+        selectinload(models.Task.subtasks),
+        selectinload(models.Task.depends_on),
+        selectinload(models.Task.blocks),
+    )
+    if due_from is not None:
+        stmt = stmt.where(
+            (models.Task.due_date.is_(None)) | (models.Task.due_date >= due_from)
+        )
+    if due_to is not None:
+        stmt = stmt.where(
+            (models.Task.due_date.is_(None)) | (models.Task.due_date <= due_to)
+        )
+    stmt = stmt.order_by(
+        models.Task.due_date.asc().nullslast(), models.Task.created_at
+    )
+    return db.execute(stmt).scalars().all()
+
+
 def get_task(db: Session, task_id: int) -> models.Task | None:
     stmt = (
         select(models.Task)
@@ -285,6 +319,52 @@ def remove_attachment(db: Session, task_id: int, filename: str) -> models.Task |
     db.commit()
     db.refresh(task)
     return task
+
+
+# ---------- Google Calendar credentials ----------
+#
+# There's only ever one row (id=1). The app has no user accounts, so being
+# connected to Google is a property of the deployment — pinning the primary key
+# means "connect" is idempotent and can never leave two half-configured rows
+# behind if a consent flow is completed twice.
+
+GOOGLE_CREDENTIAL_ID = 1
+
+
+def get_google_credential(db: Session) -> models.GoogleCredential | None:
+    return db.get(models.GoogleCredential, GOOGLE_CREDENTIAL_ID)
+
+
+def upsert_google_credential(db: Session, **fields) -> models.GoogleCredential:
+    cred = db.get(models.GoogleCredential, GOOGLE_CREDENTIAL_ID)
+    if cred is None:
+        cred = models.GoogleCredential(id=GOOGLE_CREDENTIAL_ID, **fields)
+        db.add(cred)
+    else:
+        for key, value in fields.items():
+            setattr(cred, key, value)
+    db.commit()
+    db.refresh(cred)
+    return cred
+
+
+def set_selected_calendars(db: Session, calendar_ids: list[str]) -> models.GoogleCredential | None:
+    cred = get_google_credential(db)
+    if not cred:
+        return None
+    cred.selected_calendar_ids = list(calendar_ids)  # reassign so the ORM sees the JSONB change
+    db.commit()
+    db.refresh(cred)
+    return cred
+
+
+def delete_google_credential(db: Session) -> bool:
+    cred = get_google_credential(db)
+    if not cred:
+        return False
+    db.delete(cred)
+    db.commit()
+    return True
 
 
 # ---------- Analytics ----------

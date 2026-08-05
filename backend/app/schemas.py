@@ -173,6 +173,55 @@ class SectionRead(SectionBase):
     subsections: list[SubsectionRead] = []
 
 
+# ---------- Google Calendar ----------
+
+class GoogleCalendarInfo(BaseModel):
+    id: str
+    name: str
+    description: str | None = None
+    color: str | None = None
+    primary: bool = False
+
+
+class GoogleCalendarStatus(BaseModel):
+    """Everything the Calendar page needs to decide what to render.
+
+    `configured` and `connected` are separate on purpose: no client id/secret on
+    the server is a deployment problem the user can't fix from the UI ("ask your
+    admin"/see DEPLOY.md), whereas configured-but-not-connected is exactly the
+    case where a Connect button makes sense.
+    """
+    configured: bool
+    connected: bool
+    account_email: str | None = None
+    calendars: list[GoogleCalendarInfo] = []
+    selected_calendar_ids: list[str] = []
+    # Set when the tokens exist but Google wouldn't talk to us — lets the page
+    # show the real reason instead of silently rendering zero events.
+    error: str | None = None
+
+
+class GoogleCalendarSelection(BaseModel):
+    calendar_ids: list[str]
+
+
+class GoogleEvent(BaseModel):
+    id: str
+    calendar_id: str
+    calendar_name: str
+    color: str | None = None
+    title: str
+    description: str | None = None
+    location: str | None = None
+    # ISO strings. All-day events carry a bare date ("2026-08-05"); timed ones
+    # carry a full offset-aware timestamp. `all_day` says which to expect.
+    start: str | None = None
+    end: str | None = None
+    all_day: bool = False
+    html_link: str | None = None
+    status: str | None = None
+
+
 # ---------- Analytics ----------
 
 class AnalyticsSummary(BaseModel):

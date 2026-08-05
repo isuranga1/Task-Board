@@ -126,6 +126,44 @@ export interface SubsectionUpdatePayload {
   position?: number;
 }
 
+// ---------- Google Calendar ----------
+
+export interface GoogleCalendarInfo {
+  id: string;
+  name: string;
+  description: string | null;
+  color: string | null;
+  primary: boolean;
+}
+
+export interface GoogleCalendarStatus {
+  /** Server has a client id/secret. False = nothing the UI can do about it. */
+  configured: boolean;
+  /** An account has actually completed consent. */
+  connected: boolean;
+  account_email: string | null;
+  calendars: GoogleCalendarInfo[];
+  selected_calendar_ids: string[];
+  /** Set when the stored tokens exist but Google refused them. */
+  error: string | null;
+}
+
+export interface GoogleEvent {
+  id: string;
+  calendar_id: string;
+  calendar_name: string;
+  color: string | null;
+  title: string;
+  description: string | null;
+  location: string | null;
+  /** All-day events carry "2026-08-05"; timed ones a full ISO timestamp. */
+  start: string | null;
+  end: string | null;
+  all_day: boolean;
+  html_link: string | null;
+  status: string | null;
+}
+
 export interface AnalyticsSummary {
   total_tasks: number;
   by_status: Record<TaskStatus, number>;

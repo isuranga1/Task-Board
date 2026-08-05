@@ -10,6 +10,8 @@ import type {
   TaskCreatePayload,
   TaskUpdatePayload,
   AnalyticsSummary,
+  GoogleCalendarStatus,
+  GoogleEvent,
 } from "../types";
 
 export const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
@@ -58,6 +60,13 @@ export const api = {
   // ---------- Tasks ----------
   listTasksForSection: (sectionId: number) =>
     request<Task[]>(`/sections/${sectionId}/tasks`),
+
+  // Every task in every section — what the Deadlines and Calendar views use.
+  // Unlike the per-section call above, this one isn't scoped to whatever tab
+  // the board happens to be on.
+  listAllTasks: () => request<Task[]>("/tasks/"),
+
+  getTask: (id: number) => request<Task>(`/tasks/${id}`),
 
   createTask: (payload: TaskCreatePayload) =>
     request<Task>("/tasks/", { method: "POST", body: JSON.stringify(payload) }),
@@ -122,4 +131,27 @@ export const api = {
     request<AnalyticsSummary>(
       sectionId ? `/analytics/summary?section_id=${sectionId}` : "/analytics/summary"
     ),
+
+  // ---------- Google Calendar ----------
+  getGoogleStatus: () => request<GoogleCalendarStatus>("/gcal/status"),
+
+  // Returns the consent URL rather than navigating itself — the caller decides
+  // whether to redirect the tab or open a popup.
+  getGoogleAuthUrl: () => request<{ url: string }>("/gcal/auth-url"),
+
+  setGoogleCalendars: (calendarIds: string[]) =>
+    request<GoogleCalendarStatus>("/gcal/calendars", {
+      method: "PUT",
+      body: JSON.stringify({ calendar_ids: calendarIds }),
+    }),
+
+  // `start`/`end` are Date objects; sent as UTC ISO strings, which is what the
+  // backend assumes when a timestamp arrives without an offset.
+  listGoogleEvents: (start: Date, end: Date) =>
+    request<GoogleEvent[]>(
+      `/gcal/events?start=${encodeURIComponent(start.toISOString())}` +
+        `&end=${encodeURIComponent(end.toISOString())}`
+    ),
+
+  disconnectGoogle: () => request<void>("/gcal/connection", { method: "DELETE" }),
 };

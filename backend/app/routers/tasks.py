@@ -1,8 +1,9 @@
 import os
 import uuid
+from datetime import date
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from sqlalchemy.orm import Session
 
 from .. import crud, schemas
@@ -10,6 +11,22 @@ from ..config import settings
 from ..database import get_db
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
+
+
+# Declared before "/{task_id}" purely for readability — FastAPI matches the
+# literal "/" path first regardless, since "{task_id}" needs a non-empty segment.
+@router.get("/", response_model=list[schemas.TaskRead])
+def list_all_tasks(
+    due_from: date | None = Query(None, description="Only tasks due on/after this date"),
+    due_to: date | None = Query(None, description="Only tasks due on/before this date"),
+    db: Session = Depends(get_db),
+):
+    """Every task in every section — what the Deadlines and Calendar views read.
+
+    The per-section board keeps using /sections/{id}/tasks; this exists because
+    both cross-section views need one list they can group by section themselves.
+    """
+    return crud.get_all_tasks(db, due_from=due_from, due_to=due_to)
 
 
 @router.post("/", response_model=schemas.TaskRead, status_code=201)

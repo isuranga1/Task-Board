@@ -15,6 +15,8 @@ from any device on your tailnet, with a one-command way to push updates.
 - `scripts/backup-db.sh` dumps the database and uploads it to Google Drive
   (and/or another tailnet device) — schedule it with cron, or just run it
   by hand whenever; either way losing the Pi doesn't mean losing your data (§7).
+- Optionally, the Calendar tab shows your Google Calendar events next to your
+  task deadlines (§8) — read-only, and skippable.
 
 ## 1. One-time Pi setup
 
@@ -279,7 +281,80 @@ Run that against a just-created, empty database (i.e. right after
 backend) — restoring on top of an already-populated DB will hit constraint
 conflicts.
 
-## 8. Troubleshooting
+## 8. Google Calendar sync (optional)
+
+The **Calendar** tab shows your task deadlines on a month grid. Connecting a
+Google account adds your Google events alongside them, with a tick-box per
+calendar (and per space) to control what's shown.
+
+This is **read-only** — the app requests only `calendar.readonly` and never
+writes to, edits, or deletes anything in your Google Calendar.
+
+Skip this whole section if you don't want it: without credentials the Calendar
+tab still works, it just shows task deadlines and says Google isn't set up.
+
+### 8.1 Create an OAuth client
+
+In the [Google Cloud Console](https://console.cloud.google.com):
+
+1. **New project** (top-left project dropdown → New Project). Any name.
+2. **APIs & Services → Library** → search "Google Calendar API" → **Enable**.
+3. **APIs & Services → OAuth consent screen**:
+   - User type **External**, fill in the required app name / support email.
+   - On the *Data access* step, add the scope
+     `https://www.googleapis.com/auth/calendar.readonly`.
+   - On the *Audience* step, add your own Google address under **Test users**.
+     A personal project in "Testing" mode never needs Google's verification
+     review — test users can consent to it as-is. The only catch is that a
+     refresh token issued in Testing mode expires after 7 days, so you'll
+     re-click Connect about weekly. To stop that, hit **Publish app** on the
+     consent screen; for a single-account app using only this scope, that
+     doesn't require submitting anything for review.
+4. **APIs & Services → Credentials → Create Credentials → OAuth client ID**:
+   - Application type: **Web application**.
+   - Under **Authorized redirect URIs**, add the callback URL. This has to
+     match `GOOGLE_REDIRECT_URI` byte for byte — scheme, host, port, path:
+     ```
+     http://raspberrypi.tailxxxxx.ts.net:8000/gcal/callback
+     ```
+     Add `http://localhost:8000/gcal/callback` too if you also run the app
+     natively on your dev machine; a client can hold several redirect URIs.
+5. Copy the **Client ID** and **Client secret**.
+
+### 8.2 Configure
+
+In the root `.env` (the one `docker-compose.yml` reads):
+
+```bash
+GOOGLE_CLIENT_ID=<client id>.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=<client secret>
+GOOGLE_REDIRECT_URI=http://raspberrypi.tailxxxxx.ts.net:8000/gcal/callback
+FRONTEND_URL=http://raspberrypi.tailxxxxx.ts.net
+```
+
+`FRONTEND_URL` is where the browser gets sent back to after you consent — the
+**frontend's** address (port 80), not the API's. If you leave it blank it falls
+back to the first entry in `CORS_ORIGINS`.
+
+These are read by the backend at startup, so a plain restart picks them up —
+no image rebuild needed (unlike `VITE_API_URL`, which is baked in at build time):
+
+```bash
+docker compose up -d backend
+```
+
+### 8.3 Connect
+
+Open the app → **Calendar** tab → **Connect** in the left-hand panel. You'll
+land on Google's consent screen, and get redirected back to the Calendar tab
+with your calendars listed, all ticked on. Untick any you don't want to see.
+
+The tokens live in the `google_credentials` table in Postgres, so the
+connection survives container rebuilds and is picked up by `scripts/backup-db.sh`
+along with everything else. **Disconnect** (the unlink icon) deletes them and
+revokes the grant with Google.
+
+## 9. Troubleshooting
 
 - **`pip install` fails building `psycopg2-binary` on the Pi** — no
   prebuilt wheel for your exact Python/arch. Add build deps to
@@ -298,3 +373,23 @@ conflicts.
 - **Uploaded attachments "disappear" after a redeploy** — make sure you
   didn't remove the `uploads` named volume (`docker compose down -v` would
   do that — plain `docker compose down` / `deploy.sh` never do).
+- **Google says `redirect_uri_mismatch`** — `GOOGLE_REDIRECT_URI` in `.env`
+  and the URI on the OAuth client have to be *identical* strings. Common
+  mismatches: `http` vs `https`, a missing `:8000`, a Tailscale IP in one and
+  the MagicDNS name in the other, or a trailing slash.
+- **Calendar page says "Not set up on the server"** — the backend booted
+  without `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`. Check they're in the
+  **root** `.env` (not `backend/.env`, which Docker doesn't read) and restart
+  with `docker compose up -d backend`. Note these must be `KEY=value` lines —
+  a stray label like `Client ID abc123` is silently ignored by dotenv.
+- **"Google didn't return a refresh token"** — Google only issues one on a
+  fresh grant. Remove the app at
+  [myaccount.google.com/permissions](https://myaccount.google.com/permissions),
+  then hit Connect again.
+- **The connection stops working after about a week** — your OAuth consent
+  screen is still in **Testing** mode, where refresh tokens expire in 7 days.
+  Publish the app (§8.1 step 3) or just reconnect when it lapses.
+- **A calendar's events don't show** — check it's ticked in the left panel, and
+  that its events actually fall in the month you're looking at. A calendar that
+  errors on Google's side is skipped rather than failing the page, so check
+  `docker compose logs backend` for a "Skipping calendar" warning.

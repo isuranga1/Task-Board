@@ -133,6 +133,37 @@ class Task(Base):
     )
 
 
+class GoogleCredential(Base):
+    """The one connected Google account's OAuth tokens.
+
+    This is a deliberately single-row table (always id=1, see crud.get_google_credential):
+    the app has no user accounts, so "connected to Google" is a property of the
+    deployment, not of a person. Modelling it as a table rather than a config
+    file is what lets the refresh token survive container rebuilds — it lives in
+    the same Postgres volume as everything else, and gets picked up by the
+    existing backup script for free.
+    """
+
+    __tablename__ = "google_credentials"
+
+    id = Column(Integer, primary_key=True)
+    account_email = Column(String, nullable=True)   # shown in the UI so you know which account is linked
+    access_token = Column(Text, nullable=False)
+    # Google only returns a refresh token on the FIRST consent for a client, so
+    # this is never overwritten with a null on subsequent refreshes — losing it
+    # would mean re-consenting by hand. See gcal.py's _store_tokens.
+    refresh_token = Column(Text, nullable=True)
+    token_expiry = Column(DateTime(timezone=True), nullable=True)
+    scope = Column(Text, nullable=True)
+    # Calendar IDs the user ticked in the UI. Empty list = show none; the
+    # frontend defaults a fresh connection to every calendar being on.
+    selected_calendar_ids = Column(JSONB, default=list, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 class Subtask(Base):
     __tablename__ = "subtasks"
 

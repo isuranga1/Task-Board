@@ -55,6 +55,16 @@ dashboard fetches sections from `http://localhost:8000` on load.
 - **Priority**: low/medium/high/urgent, shown as a colored dot on each card.
 - **Email reminders**: set a date on a task, get one email when it arrives
   (requires SMTP config — see `backend/README.md`).
+- **Deadlines tab**: every task across every section in one list, ordered by
+  how soon it's due — Overdue, Today, Tomorrow, Rest of this week, Later, No
+  deadline. Tick spaces on/off in the left panel; completed tasks are hidden
+  until you tick them on. Click any row to open its detail modal.
+- **Calendar tab**: a month grid of task deadlines, optionally with your
+  Google Calendar events layered on top. Each space and each Google calendar
+  gets its own tick-box, so you can narrow it down to just what you care
+  about. Click a day for a detailed list of everything on it. Setting up the
+  Google connection is documented in `DEPLOY.md` §8 — it's read-only and
+  entirely optional.
 - **Analytics tab**: completion rate, overdue count, priority/status
   breakdowns, and a completed-per-day trend, filterable by section.
 - **Drag and drop**: drag a card between Todo/In Progress/Done to change status.
