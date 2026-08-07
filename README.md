@@ -67,6 +67,13 @@ dashboard fetches sections from `http://localhost:8000` on load.
   entirely optional.
 - **Analytics tab**: completion rate, overdue count, priority/status
   breakdowns, and a completed-per-day trend, filterable by section.
+- **Grow orb**: the floating circle in the bottom-right, on every tab. Click
+  it and an LLM hands you one grown-up thing worth understanding — how a car
+  engine breathes, what an index fund really is, what your payslip's tax code
+  means — with something concrete to go and try. Capped at 25 requests a day
+  (server-side, shared across devices, resets midnight UTC) and rotated across
+  ~18 topic areas so it doesn't keep suggesting the same five things. Needs an
+  OpenRouter key; setup is in `DEPLOY.md` §9 and it's entirely optional.
 - **Drag and drop**: drag a card between Todo/In Progress/Done to change status.
 
 ## Notes

@@ -164,6 +164,38 @@ class GoogleCredential(Base):
     )
 
 
+class GrowthTip(Base):
+    """One LLM-written nudge toward a grown-up skill, as produced by the Grow orb.
+
+    Persisted rather than shown once and thrown away, for three reasons that all
+    happen to need the same table:
+
+    1. It IS the daily quota counter. An in-memory tally would reset on every
+       container restart — and this deployment restarts the backend on each
+       ./deploy.sh and on every push via the deploy workflow — which would make
+       a 25/day cap meaningless. Counting rows makes the limit survive restarts.
+    2. It's how the prompt avoids repeating itself: the last handful of titles
+       get fed back in as "don't suggest these again".
+    3. It gives the panel a history to page back through, so a good suggestion
+       isn't lost the moment you click for another one.
+    """
+
+    __tablename__ = "growth_tips"
+
+    id = Column(Integer, primary_key=True, index=True)
+    topic = Column(String, nullable=False)        # "Money & finance", "How things work"
+    title = Column(String, nullable=False)        # the one-line thing to learn
+    body = Column(Text, nullable=False)           # why it's worth knowing
+    try_this = Column(Text, nullable=True)        # a concrete thing to actually go do
+    model = Column(String, nullable=True)         # which OpenRouter model wrote it
+    # The UTC date the row was created, stored explicitly instead of being
+    # derived from created_at. The quota query then hits a plain indexed date
+    # equality rather than casting a timestamptz per row, and "which day did
+    # this count against" can never drift from how the count is computed.
+    created_on = Column(Date, nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class Subtask(Base):
     __tablename__ = "subtasks"
 

@@ -354,7 +354,70 @@ connection survives container rebuilds and is picked up by `scripts/backup-db.sh
 along with everything else. **Disconnect** (the unlink icon) deletes them and
 revokes the grant with Google.
 
-## 9. Troubleshooting
+## 9. The Grow orb (optional)
+
+The floating circle in the bottom-right corner asks an LLM for one grown-up
+thing worth understanding — how an engine breathes, what an index fund
+actually is, why bread needs salt — plus something concrete to go and try.
+It's off unless you give it a key, and the rest of the app doesn't care
+either way.
+
+### 9.1 Get a key
+
+1. Sign in at [openrouter.ai](https://openrouter.ai) and add a little credit
+   (a few dollars lasts a very long time at this volume).
+2. Create a key at **openrouter.ai/keys**.
+3. **Set a spend limit on the key itself while you're there.** The app's
+   25/day cap is a safety net, not a billing control — the limit on the key
+   is what actually cannot be exceeded.
+
+### 9.2 Configure
+
+Add to the root `.env` on the Pi:
+
+```bash
+OPENROUTER_API_KEY=<the key you just created>
+OPENROUTER_MODEL=openai/gpt-4o-mini
+GROWTH_DAILY_LIMIT=25
+```
+
+Then recreate the backend — env vars are read at startup, and no image
+rebuild is needed:
+
+```bash
+docker compose up -d backend
+```
+
+Treat that key like a password: it belongs only in `.env` (already
+gitignored) and in OpenRouter's dashboard. It's never written to the
+database, never logged, and `/growth/status` reports only whether one is
+present — never its value.
+
+### 9.3 How the daily limit works
+
+Every generated tip is a row in the `growth_tips` table, stamped with the UTC
+date it was made. The cap is a count of today's rows, so it survives backend
+restarts (which happen on every deploy) and applies across all your devices
+at once — not 25 per browser.
+
+Requests that *fail* don't count: the row is only written once a tip actually
+comes back, so a network blip doesn't eat your budget. The counter resets at
+midnight UTC. To change the ceiling, edit `GROWTH_DAILY_LIMIT` and re-run the
+`docker compose up -d backend` above.
+
+Reading past tips (the history button in the panel) is free — it's a database
+read, no API call.
+
+### 9.4 Changing the model
+
+`OPENROUTER_MODEL` takes any slug from
+[openrouter.ai/models](https://openrouter.ai/models). Anything that can follow
+a "reply with JSON" instruction works; the code copes with models that wrap
+their JSON in a code fence. If you want it to cost nothing at all, the
+`:free` variants work too, at some cost in how interesting the suggestions
+are.
+
+## 10. Troubleshooting
 
 - **`pip install` fails building `psycopg2-binary` on the Pi** — no
   prebuilt wheel for your exact Python/arch. Add build deps to

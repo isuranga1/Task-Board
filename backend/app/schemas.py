@@ -222,6 +222,35 @@ class GoogleEvent(BaseModel):
     status: str | None = None
 
 
+# ---------- Growth (the "learn one grown-up thing" orb) ----------
+
+class GrowthTipRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    topic: str
+    title: str
+    body: str
+    try_this: str | None = None
+    created_at: datetime
+
+
+class GrowthStatus(BaseModel):
+    """Everything the orb needs to decide what to render before you click it.
+
+    `configured` and the quota fields are separate concerns, same as the Google
+    status shape: no API key on the server is a deployment matter the UI can
+    only explain, whereas "configured but 25/25 used" is a normal state that
+    deserves a real countdown rather than a broken-looking button.
+    """
+    configured: bool
+    used_today: int
+    daily_limit: int
+    remaining: int
+    # The most recent tip, so reopening the panel shows what you last got
+    # instead of an empty box that implies you have to spend a request.
+    latest: GrowthTipRead | None = None
+
+
 # ---------- Analytics ----------
 
 class AnalyticsSummary(BaseModel):

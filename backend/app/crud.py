@@ -412,3 +412,55 @@ def get_analytics(db: Session, section_id: int | None = None) -> dict:
         "subtasks_done": subtasks_done,
         "completed_by_day": completed_by_day,
     }
+
+
+# ---------- Growth tips ----------
+#
+# "Today" is deliberately UTC, matching the `created_on` column these are
+# counted from. The alternative — the container's local time — would make the
+# quota reset at a moment that depends on the host's TZ setting, and this
+# backend runs in a container whose clock is UTC anyway.
+
+def utc_today() -> date:
+    return datetime.now(timezone.utc).date()
+
+
+def count_growth_tips_today(db: Session) -> int:
+    stmt = select(func.count()).select_from(models.GrowthTip).where(
+        models.GrowthTip.created_on == utc_today()
+    )
+    return db.execute(stmt).scalar() or 0
+
+
+def get_recent_growth_tips(db: Session, limit: int = 20) -> list[models.GrowthTip]:
+    """Newest first — used both for the panel's history and, in growth.py, to
+    tell the model which suggestions it has already made."""
+    stmt = (
+        select(models.GrowthTip)
+        .order_by(models.GrowthTip.id.desc())
+        .limit(limit)
+    )
+    return db.execute(stmt).scalars().all()
+
+
+def create_growth_tip(
+    db: Session,
+    *,
+    topic: str,
+    title: str,
+    body: str,
+    try_this: str | None,
+    model: str | None,
+) -> models.GrowthTip:
+    tip = models.GrowthTip(
+        topic=topic,
+        title=title,
+        body=body,
+        try_this=try_this,
+        model=model,
+        created_on=utc_today(),
+    )
+    db.add(tip)
+    db.commit()
+    db.refresh(tip)
+    return tip

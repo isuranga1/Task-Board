@@ -41,6 +41,8 @@ export const motionFlags = {
   checkStrike: true,
   /** Entering cards/columns cascade instead of appearing all at once. */
   stagger: true,
+  /** The Grow orb glows softly, and spins a ring while it's writing a tip. */
+  growthOrb: true,
 };
 
 /** Which color a card's arrival ring flashes, per column. */
@@ -103,6 +105,19 @@ export function strikeMotionClass(isDone: boolean): string {
 /** Classes for the little task-count chip next to a column title. */
 export function countMotionClass(): string {
   return motionFlags.countBump ? "motion-bump" : "";
+}
+
+/**
+ * Classes for the Grow orb button. `thinking` = a tip is being generated.
+ */
+export function orbMotionClass(thinking: boolean): string {
+  if (!motionFlags.growthOrb) return "";
+  return thinking ? "motion-orb motion-orb-thinking" : "motion-orb";
+}
+
+/** Classes for the panel that opens out of the orb. */
+export function orbPanelMotionClass(): string {
+  return motionFlags.growthOrb ? "motion-orb-panel" : "";
 }
 
 /**

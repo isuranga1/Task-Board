@@ -29,6 +29,10 @@
 
   --motion-stagger-step: 45ms; /* per-card delay down a column */
   --motion-stagger-max: 6; /* stop staggering after this many cards */
+
+  --motion-orb-idle-duration: 5s; /* the Grow orb's slow "there's something here" glow */
+  --motion-orb-think-duration: 1.1s; /* faster ring while a tip is being written */
+  --motion-orb-panel-duration: 240ms; /* the panel unfolding out of the orb */
 }
 
 /* ---------------------------------------------------------------------------
@@ -221,6 +225,85 @@
 }
 
 /* ---------------------------------------------------------------------------
+   Grow orb — the floating circle that hands you something to learn.
+
+   It sits over the board permanently, which sets the brief: enough motion to
+   read as alive and clickable, little enough that it never competes with the
+   task you're actually looking at. Hence a 5-second glow rather than anything
+   with a beat to it.
+   -------------------------------------------------------------------------- */
+
+@keyframes motion-orb-glow {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.75;
+    transform: scale(1.12);
+  }
+}
+
+@keyframes motion-orb-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@keyframes motion-orb-panel {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Deliberately NOT setting `position` here. This file is loaded after
+   Tailwind, so a bare `.motion-orb { position: relative }` outranks the
+   `.fixed` utility at equal specificity and silently drops the orb out of
+   fixed positioning into normal flow — bottom-left of the page, half off
+   screen. The orb's own wrapper owns positioning; this class owns looks.
+   The pseudo-elements below anchor to whatever containing block that wrapper
+   establishes. */
+
+/* The halo lives on a pseudo-element so it can loop forever without taking
+   over the button's own `transform` — the same trick .motion-active uses. */
+.motion-orb::before {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(124, 140, 255, 0.55), transparent 70%);
+  filter: blur(6px);
+  pointer-events: none;
+  animation: motion-orb-glow var(--motion-orb-idle-duration) ease-in-out infinite;
+}
+
+/* While a tip is being written: a conic sweep around the rim. `mask` cuts the
+   filled circle down to a ring, so one element gives a spinner without an SVG
+   or a second nested div. */
+.motion-orb-thinking::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 999px;
+  background: conic-gradient(from 0deg, transparent 0deg, var(--color-accent-todo) 300deg, transparent 360deg);
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+  pointer-events: none;
+  animation: motion-orb-spin var(--motion-orb-think-duration) linear infinite;
+}
+
+.motion-orb-panel {
+  animation: motion-orb-panel var(--motion-orb-panel-duration) var(--motion-enter-ease);
+  transform-origin: bottom right;
+}
+
+/* ---------------------------------------------------------------------------
    Stagger — set `--motion-i` to an index and entering items cascade instead of
    all appearing at once. Capped so a long column doesn't crawl in.
    -------------------------------------------------------------------------- */
@@ -245,6 +328,19 @@
   .motion-active::after {
     opacity: 0.6; /* keep the "in progress" cue, just hold it still */
   }
+
+  .motion-orb::before,
+  .motion-orb-panel {
+    animation: none;
+  }
+
+  .motion-orb::before {
+    opacity: 0.5; /* the orb still reads as a lit, tappable thing */
+  }
+
+  /* The thinking ring keeps spinning on purpose: it is the only signal that a
+     request is in flight, and a frozen spinner reads as a hung app. It's a
+     small, contained rotation rather than movement across the page. */
 
   .motion-column {
     transition: none;

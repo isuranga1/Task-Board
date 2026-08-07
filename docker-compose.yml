@@ -40,6 +40,11 @@ services:
       # origin. Falls back to CORS_ORIGINS' intent by defaulting to the same
       # host you serve the UI from; set it explicitly in .env.
       FRONTEND_URL: ${FRONTEND_URL:-}
+      # Grow orb. Blank key = the orb shows a "not configured" note and costs
+      # nothing; the rest of the app is unaffected.
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openai/gpt-4o-mini}
+      GROWTH_DAILY_LIMIT: ${GROWTH_DAILY_LIMIT:-25}
     volumes:
       - uploads:/app/uploads
     ports:

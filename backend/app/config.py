@@ -38,6 +38,26 @@ class Settings(BaseSettings):
     # that's a list and this needs one unambiguous destination.
     frontend_url: str = "http://localhost:5173"
 
+    # Grow orb — the LLM-written "learn one grown-up thing" nudges, served
+    # through OpenRouter. Optional: a blank key means the orb renders a
+    # "not configured" hint instead of a button, and nothing else changes.
+    #
+    # The key is read from the environment and used only as an Authorization
+    # header. It is never written to the DB, never logged, and never returned
+    # by any endpoint — /growth/status reports a boolean, not the value.
+    openrouter_api_key: str = ""
+    # An OpenRouter model slug ("vendor/model"). Kept configurable so switching
+    # to a cheaper, freer or newer model is an env change, not a code change.
+    openrouter_model: str = "openai/gpt-4o-mini"
+    # Overridable only for self-hosted OpenAI-compatible relays; leave as-is for
+    # OpenRouter itself. No trailing slash — growth.py appends the path.
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+
+    # Hard ceiling on generations per day, counted from rows actually written
+    # (see growth.py). Exists so a stuck button or an over-enthusiastic evening
+    # can't quietly run up a bill.
+    growth_daily_limit: int = 25
+
     @model_validator(mode="after")
     def _blank_urls_fall_back_to_defaults(self):
         # docker-compose passes optional vars through as `${FOO:-}`, which sets
@@ -56,6 +76,10 @@ class Settings(BaseSettings):
     @property
     def google_configured(self) -> bool:
         return bool(self.google_client_id and self.google_client_secret)
+
+    @property
+    def growth_configured(self) -> bool:
+        return bool(self.openrouter_api_key.strip())
 
     class Config:
         env_file = ".env"

@@ -164,6 +164,29 @@ export interface GoogleEvent {
   status: string | null;
 }
 
+// ---------- Grow orb ----------
+
+export interface GrowthTip {
+  id: number;
+  /** Which area it came from, e.g. "Money & finance — saving, investing, …". */
+  topic: string;
+  title: string;
+  body: string;
+  /** One concrete thing to go and do. Null if the model omitted it. */
+  try_this: string | null;
+  created_at: string;
+}
+
+export interface GrowthStatus {
+  /** Server has an OpenRouter key. False = nothing the UI can do about it. */
+  configured: boolean;
+  used_today: number;
+  daily_limit: number;
+  remaining: number;
+  /** The last tip generated, so opening the orb doesn't have to spend one. */
+  latest: GrowthTip | null;
+}
+
 export interface AnalyticsSummary {
   total_tasks: number;
   by_status: Record<TaskStatus, number>;

@@ -4,6 +4,7 @@ import { Dashboard } from "./pages/Dashboard";
 import { Analytics } from "./pages/Analytics";
 import { Deadlines } from "./pages/Deadlines";
 import { CalendarView } from "./pages/CalendarView";
+import { GrowthOrb } from "./components/growth/GrowthOrb";
 
 type View = "dashboard" | "deadlines" | "calendar" | "analytics";
 
@@ -86,6 +87,10 @@ function App() {
         {view === "calendar" && <CalendarView />}
         {view === "analytics" && <Analytics />}
       </div>
+
+      {/* Outside the view switch: the orb is the one thing here that isn't
+          about the work, so it stays reachable from every tab. */}
+      <GrowthOrb />
     </div>
   );
 }

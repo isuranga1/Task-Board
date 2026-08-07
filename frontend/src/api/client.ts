@@ -12,9 +12,44 @@ import type {
   AnalyticsSummary,
   GoogleCalendarStatus,
   GoogleEvent,
+  GrowthStatus,
+  GrowthTip,
 } from "../types";
 
 export const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+
+/**
+ * Carries the HTTP status alongside the message, so a caller can branch on
+ * *which* failure it was — the Grow orb needs to tell "you've used today's 25"
+ * (429) apart from a genuine error, and string-matching the message to find
+ * that out would break the first time the wording changed.
+ *
+ * Extends Error, so existing `err instanceof Error` handling still catches it.
+ */
+export class ApiError extends Error {
+  readonly status: number;
+  /** The server's `detail` where FastAPI sent one, else the raw body. */
+  readonly detail: string;
+
+  constructor(status: number, detail: string, message: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.detail = detail;
+  }
+}
+
+// FastAPI puts human-readable errors in a `detail` field; anything else (a
+// proxy's HTML error page, an empty body) falls back to the raw text.
+function readDetail(body: string): string {
+  try {
+    const parsed = JSON.parse(body);
+    if (typeof parsed?.detail === "string") return parsed.detail;
+  } catch {
+    // Not JSON — the raw body is the best we have.
+  }
+  return body;
+}
 
 // Every real request funnels through this one function so error handling
 // (and later: auth headers, logging, etc.) lives in exactly one place.
@@ -26,7 +61,11 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new Error(`API ${res.status} ${res.statusText}: ${body}`);
+    throw new ApiError(
+      res.status,
+      readDetail(body),
+      `API ${res.status} ${res.statusText}: ${body}`
+    );
   }
 
   // DELETE endpoints return 204 No Content — nothing to parse.
@@ -154,4 +193,13 @@ export const api = {
     ),
 
   disconnectGoogle: () => request<void>("/gcal/connection", { method: "DELETE" }),
+
+  // ---------- Grow orb ----------
+  getGrowthStatus: () => request<GrowthStatus>("/growth/status"),
+
+  // The only call in the app that costs real money — one of the day's 25.
+  // The server, not this client, is what enforces that ceiling.
+  generateGrowthTip: () => request<GrowthTip>("/growth/tip", { method: "POST" }),
+
+  listGrowthTips: (limit = 20) => request<GrowthTip[]>(`/growth/tips?limit=${limit}`),
 };
