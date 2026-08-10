@@ -1,7 +1,8 @@
-import { format, parseISO, differenceInCalendarDays } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { Lock, Paperclip, Link2, FileText } from "lucide-react";
 import type { Task, TaskPriority, TaskStatus } from "../../types";
 import { staggerIndex } from "../../animations";
+import { dueState } from "../../utils/deadlines";
 
 const PRIORITY_DOT: Record<TaskPriority, string> = {
   low: "bg-zinc-500",
@@ -23,12 +24,26 @@ const STATUS_CHIP: Record<TaskStatus, string> = {
 };
 
 /** "3d late" / "Due today" / "in 5d" — the relative bit that makes a list scannable. */
-function relativeDue(dueDate: string): { text: string; className: string } {
-  const days = differenceInCalendarDays(parseISO(dueDate), new Date());
-  if (days < 0) return { text: `${Math.abs(days)}d late`, className: "text-rose-300" };
-  if (days === 0) return { text: "Due today", className: "text-amber-300" };
-  if (days === 1) return { text: "Tomorrow", className: "text-emerald-300" };
-  return { text: `in ${days}d`, className: "text-zinc-500" };
+function relativeDue(task: Task): { text: string; className: string } | null {
+  const state = dueState(task);
+  if (!state) return null;
+
+  switch (state.kind) {
+    case "late":
+      return { text: `${state.days}d late`, className: "text-rose-300" };
+    // Finished work is history, not an alarm — stated once, in a colour that
+    // doesn't shout, and never growing again.
+    case "finished_late":
+      return { text: `${state.days}d late`, className: "text-rose-300/60" };
+    case "finished_on_time":
+      return { text: "On time", className: "text-emerald-300/60" };
+    case "finished_unknown":
+      return { text: "Done", className: "text-zinc-500" };
+    case "upcoming":
+      if (state.days === 0) return { text: "Due today", className: "text-amber-300" };
+      if (state.days === 1) return { text: "Tomorrow", className: "text-emerald-300" };
+      return { text: `in ${state.days}d`, className: "text-zinc-500" };
+  }
 }
 
 interface DeadlineRowProps {
@@ -50,7 +65,7 @@ export function DeadlineRow({
 }: DeadlineRowProps) {
   const isBlocked = task.depends_on.some((d) => d.status !== "done");
   const doneSubtasks = task.subtasks.filter((s) => s.is_done).length;
-  const due = task.due_date ? relativeDue(task.due_date) : null;
+  const due = relativeDue(task);
   const isDone = task.status === "done";
 
   return (

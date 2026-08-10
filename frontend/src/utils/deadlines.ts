@@ -93,6 +93,52 @@ export function groupByDeadline(tasks: Task[], now: Date = new Date()): Deadline
   }));
 }
 
+/**
+ * How a task's deadline should read right now.
+ *
+ * The distinction that matters here is whether the clock is still running. An
+ * unfinished task measures its lateness against *today*, so it grows more
+ * overdue every morning — correct, and the point of the red text. A finished
+ * one must measure against the day it was actually finished instead: a task
+ * closed one day late is permanently one day late, and comparing it to today
+ * made completed work look worse and worse the longer you left it on the
+ * board. That was the bug this type exists to make un-writable.
+ *
+ * `completed_at` is set by the backend on the transition into "done", so it's
+ * present for anything closed through the UI. Tasks finished before that
+ * column existed have none, and report `finished_unknown` rather than guessing
+ * from `updated_at` — which moves on every later edit and would invent a
+ * completion date that never happened.
+ *
+ * Timezone: `completed_at` is a UTC instant while `due_date` is a bare
+ * calendar date, so the two are only comparable once both are read on the
+ * same calendar. That calendar is the viewer's local one, because that's the
+ * calendar the date picker used when the deadline was chosen — finishing at
+ * 11pm on the 4th is on time for a deadline of the 4th, wherever you are.
+ */
+export type DueState =
+  | { kind: "upcoming"; days: number }
+  /** Still open and past its date. `days` grows with time. */
+  | { kind: "late"; days: number }
+  /** Done, and it missed the date. `days` is frozen at what it cost. */
+  | { kind: "finished_late"; days: number }
+  | { kind: "finished_on_time" }
+  | { kind: "finished_unknown" };
+
+export function dueState(task: Task, now: Date = new Date()): DueState | null {
+  if (!task.due_date) return null;
+  const due = parseISO(task.due_date);
+
+  if (task.status === "done") {
+    if (!task.completed_at) return { kind: "finished_unknown" };
+    const lateBy = differenceInCalendarDays(parseISO(task.completed_at), due);
+    return lateBy > 0 ? { kind: "finished_late", days: lateBy } : { kind: "finished_on_time" };
+  }
+
+  const days = differenceInCalendarDays(due, now);
+  return days < 0 ? { kind: "late", days: -days } : { kind: "upcoming", days };
+}
+
 /** Tasks past their deadline and not yet done — the number worth alarming about. */
 export function countOverdue(tasks: Task[], now: Date = new Date()): number {
   return tasks.filter(

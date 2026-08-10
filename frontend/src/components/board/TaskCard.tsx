@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useDraggable } from "@dnd-kit/core";
-import { format, differenceInCalendarDays } from "date-fns";
+import { format } from "date-fns";
 import { Link2, FileText, Puzzle, Paperclip, Lock, Clock } from "lucide-react";
 import type { Task, TaskPriority } from "../../types";
 import {
@@ -9,6 +9,7 @@ import {
   strikeMotionClass,
   useCardMotion,
 } from "../../animations";
+import { dueState } from "../../utils/deadlines";
 
 interface TaskCardProps {
   task: Task;
@@ -81,22 +82,35 @@ function TimeBadge({ task }: { task: Task }) {
   return null;
 }
 
-function DueBadge({ dueDate }: { dueDate: string | null }) {
-  if (!dueDate) return null;
-  const days = differenceInCalendarDays(new Date(dueDate), new Date());
+function DueBadge({ task }: { task: Task }) {
+  const state = dueState(task);
+  if (!state) return null;
 
-  if (days < 0) {
-    return (
-      <span className="text-rose-300 text-xs font-medium">
-        Late by {Math.abs(days)}d
-      </span>
-    );
+  switch (state.kind) {
+    case "late":
+      return (
+        <span className="text-rose-300 text-xs font-medium">Late by {state.days}d</span>
+      );
+    // Once a card is in Done the clock has stopped. Reporting how late it was
+    // *finished* keeps the number honest and static; measuring against today
+    // meant a card sitting in Done climbed a day every morning forever.
+    case "finished_late":
+      return (
+        <span className="text-rose-300/60 text-xs font-medium">
+          Finished {state.days}d late
+        </span>
+      );
+    case "finished_on_time":
+      return <span className="text-emerald-300/60 text-xs font-medium">On time</span>;
+    case "finished_unknown":
+      return null;
+    case "upcoming":
+      return (
+        <span className="text-emerald-300 text-xs font-medium">
+          {state.days === 0 ? "Due today" : `${state.days}d left`}
+        </span>
+      );
   }
-  return (
-    <span className="text-emerald-300 text-xs font-medium">
-      {days === 0 ? "Due today" : `${days}d left`}
-    </span>
-  );
 }
 
 // The visual content shared by the in-column card and its drag-overlay
@@ -156,7 +170,7 @@ function CardBody({
         {task.subtasks.length > 0 && <Puzzle size={13} className="text-zinc-500" />}
         {attachments.length > 0 && <Paperclip size={13} className="text-zinc-500" />}
         <div className="ml-auto">
-          <DueBadge dueDate={task.due_date} />
+          <DueBadge task={task} />
         </div>
       </div>
 

@@ -13,7 +13,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { bucketFor, groupByDeadline, countOverdue } from "./deadlines.ts";
+import { bucketFor, groupByDeadline, countOverdue, dueState } from "./deadlines.ts";
 import { eventDayKeys, dayKey, eventTimeLabel } from "./calendar.ts";
 import type { GoogleEvent, Task } from "../types/index.ts";
 
@@ -81,6 +81,110 @@ test("a task due today is not overdue, even late in the day", () => {
   const lateInDay = new Date(2026, 7, 5, 23, 59, 0);
   assert.equal(bucketFor(task({ due_date: "2026-08-05" }), lateInDay), "today");
   assert.equal(countOverdue([task({ due_date: "2026-08-05" })], lateInDay), 0);
+});
+
+test("dueState keeps counting up while a task is still open", () => {
+  assert.deepEqual(dueState(task({ due_date: null }), NOW), null);
+  assert.deepEqual(dueState(task({ due_date: "2026-08-05" }), NOW), {
+    kind: "upcoming",
+    days: 0,
+  });
+  assert.deepEqual(dueState(task({ due_date: "2026-08-12" }), NOW), {
+    kind: "upcoming",
+    days: 7,
+  });
+  assert.deepEqual(dueState(task({ due_date: "2026-08-02" }), NOW), {
+    kind: "late",
+    days: 3,
+  });
+  // An open task genuinely does get later every day.
+  assert.deepEqual(dueState(task({ due_date: "2026-08-02" }), new Date(2026, 7, 20)), {
+    kind: "late",
+    days: 18,
+  });
+});
+
+/**
+ * `completed_at` as the backend stores it: a UTC instant. Built from a LOCAL
+ * wall-clock time on purpose, so these tests assert the intended behaviour
+ * ("finished during the afternoon of the 3rd, where the user lives") in every
+ * timezone. Hard-coding a Z-suffixed string instead makes the expected answer
+ * depend on the machine's offset — 2026-08-04T23:30:00Z is the 4th in London
+ * and the 5th in Colombo, so such a test passes or fails by geography.
+ */
+function completedAt(year: number, month: number, day: number, hour = 12): string {
+  return new Date(year, month, day, hour).toISOString();
+}
+
+test("a finished task's lateness is frozen at when it was finished", () => {
+  // The regression: this card sat in Done reading "Late by 3d", then "4d",
+  // then "30d" — it was being measured against today instead of against the
+  // day the work actually stopped.
+  const finishedLate = task({
+    due_date: "2026-08-02",
+    status: "done",
+    completed_at: completedAt(2026, 7, 3),
+  });
+  assert.deepEqual(dueState(finishedLate, NOW), { kind: "finished_late", days: 1 });
+  // Same answer a month later. That's the whole point.
+  assert.deepEqual(dueState(finishedLate, new Date(2026, 8, 30)), {
+    kind: "finished_late",
+    days: 1,
+  });
+});
+
+test("a task finished on or before its due date reads as on time", () => {
+  const onTime = task({
+    due_date: "2026-08-10",
+    status: "done",
+    completed_at: completedAt(2026, 7, 4),
+  });
+  assert.deepEqual(dueState(onTime, NOW), { kind: "finished_on_time" });
+
+  // Finished on the day itself still counts as on time, however late at night.
+  const sameDay = task({
+    due_date: "2026-08-04",
+    status: "done",
+    completed_at: completedAt(2026, 7, 4, 23),
+  });
+  assert.deepEqual(dueState(sameDay, NOW), { kind: "finished_on_time" });
+
+  // A task closed well before a future deadline must not read as "upcoming".
+  const early = task({
+    due_date: "2026-12-25",
+    status: "done",
+    completed_at: completedAt(2026, 7, 1),
+  });
+  assert.deepEqual(dueState(early, NOW), { kind: "finished_on_time" });
+});
+
+test("completion is judged on the local calendar, like the due date is", () => {
+  // A due date is a bare "2026-08-04" chosen in a local date picker, so the
+  // instant it's compared against has to be read on the same calendar. Just
+  // before local midnight is the last moment that still counts as on time;
+  // just after is a day late.
+  const due = "2026-08-04";
+  assert.deepEqual(
+    dueState(task({ due_date: due, status: "done", completed_at: completedAt(2026, 7, 4, 23) }), NOW),
+    { kind: "finished_on_time" }
+  );
+  assert.deepEqual(
+    dueState(task({ due_date: due, status: "done", completed_at: completedAt(2026, 7, 5, 0) }), NOW),
+    { kind: "finished_late", days: 1 }
+  );
+});
+
+test("a done task with no completion timestamp doesn't guess", () => {
+  // Pre-dates the time-tracking columns. `updated_at` would be a tempting
+  // stand-in, but it moves on every later edit and would invent a completion
+  // date that never happened.
+  const legacy = task({
+    due_date: "2026-08-01",
+    status: "done",
+    completed_at: null,
+    updated_at: "2026-08-30T00:00:00Z",
+  });
+  assert.deepEqual(dueState(legacy, NOW), { kind: "finished_unknown" });
 });
 
 test("countOverdue ignores completed tasks", () => {
