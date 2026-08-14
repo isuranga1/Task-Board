@@ -57,16 +57,32 @@ function App() {
   }, [banner]);
 
   return (
-    <div className="min-h-screen">
-      <nav className="glass sticky top-4 z-30 mx-auto mb-2 flex w-fit items-center gap-1 rounded-full p-1 px-1.5">
+    <div className="min-h-dvh">
+      {/* Two shapes, one list. On a phone the four labelled tabs simply don't
+          fit across 375px as a centered pill, so they become a full-width bar
+          pinned to the bottom — within thumb reach, and the same place iOS
+          puts navigation in every native app. The floating top pill returns
+          at sm, where there's room for it. */}
+      <nav
+        className="glass fixed inset-x-0 bottom-0 z-30 flex items-stretch rounded-none
+          pb-[env(safe-area-inset-bottom)]
+          sm:sticky sm:inset-x-auto sm:bottom-auto sm:top-4 sm:mx-auto sm:mb-2 sm:w-fit sm:items-center
+          sm:gap-1 sm:rounded-full sm:p-1 sm:px-1.5 sm:pb-1"
+      >
         {NAV.map(({ view: v, label, icon: Icon }) => (
           <button
             key={v}
             onClick={() => setView(v)}
-            className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-all
-              ${v === view ? "bg-white text-black shadow-sm" : "text-zinc-400 hover:text-white"}`}
+            aria-current={v === view ? "page" : undefined}
+            className={`flex flex-1 flex-col items-center justify-center gap-1 rounded-none px-1 py-2.5 text-[11px] font-medium transition-all
+              sm:flex-none sm:flex-row sm:gap-1.5 sm:rounded-full sm:px-4 sm:py-2 sm:text-sm
+              ${
+                v === view
+                  ? "text-white sm:bg-white sm:text-black sm:shadow-sm"
+                  : "text-zinc-500 sm:text-zinc-400 sm:hover:text-white"
+              }`}
           >
-            <Icon size={15} /> {label}
+            <Icon size={19} className="sm:h-[15px] sm:w-[15px]" /> {label}
           </button>
         ))}
       </nav>
@@ -81,7 +97,9 @@ function App() {
         </div>
       )}
 
-      <div className="px-4 pb-10 pt-2 sm:px-8">
+      {/* pb-28 clears the fixed bottom bar (plus the home indicator under it);
+          from sm the bar is back at the top and only the old padding applies. */}
+      <div className="px-4 pb-28 pt-4 sm:px-8 sm:pb-10 sm:pt-2">
         {view === "dashboard" && <Dashboard />}
         {view === "deadlines" && <Deadlines />}
         {view === "calendar" && <CalendarView />}

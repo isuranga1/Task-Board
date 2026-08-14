@@ -1,4 +1,13 @@
-import { Check, RefreshCw, Link2Off, CalendarPlus, TriangleAlert } from "lucide-react";
+import { useState } from "react";
+import {
+  Check,
+  RefreshCw,
+  Link2Off,
+  CalendarPlus,
+  TriangleAlert,
+  SlidersHorizontal,
+  ChevronDown,
+} from "lucide-react";
 import { sectionColor } from "../../utils/sectionColors";
 import type { GoogleCalendarStatus, Section } from "../../types";
 
@@ -77,61 +86,84 @@ export function FilterPanel({
   const visible = new Set(visibleSectionIds);
   const allOn = sections.length > 0 && sections.every((s) => visible.has(s.id));
 
-  return (
-    <aside className="glass w-full shrink-0 rounded-2xl p-4 lg:w-60">
-      <div className="mb-1 flex items-baseline justify-between">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-          Spaces
-        </h2>
-        <button
-          onClick={() => onSetAllSections(!allOn)}
-          className="text-xs text-indigo-300 transition-colors hover:text-indigo-200"
-        >
-          {allOn ? "None" : "All"}
-        </button>
-      </div>
+  // Below lg this panel sits ABOVE the list rather than beside it, so leaving
+  // it permanently open would push the thing you came to read off-screen.
+  // Collapsed by default there; from lg it's a sidebar and always open.
+  const [open, setOpen] = useState(false);
 
-      <div className="-mx-2">
-        {sections.map((section, i) => (
+  return (
+    <aside className="glass w-full shrink-0 rounded-2xl lg:w-60">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-2 px-4 py-3 text-sm text-zinc-300 lg:hidden"
+      >
+        <SlidersHorizontal size={14} className="text-zinc-500" />
+        Filters
+        <span className="text-xs text-zinc-600">
+          {visibleSectionIds.length}/{sections.length} spaces
+        </span>
+        <ChevronDown
+          size={16}
+          className={`ml-auto text-zinc-500 transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      <div className={`px-4 pb-4 lg:block lg:pt-4 ${open ? "block" : "hidden"}`}>
+        <div className="mb-1 flex items-baseline justify-between">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+            Spaces
+          </h2>
+          <button
+            onClick={() => onSetAllSections(!allOn)}
+            className="text-xs text-indigo-300 transition-colors hover:text-indigo-200"
+          >
+            {allOn ? "None" : "All"}
+          </button>
+        </div>
+
+        <div className="-mx-2">
+          {sections.map((section, i) => (
+            <Tick
+              key={section.id}
+              checked={visible.has(section.id)}
+              onChange={(checked) => onToggleSection(section.id, checked)}
+              label={section.name}
+              color={sectionColor(section, i)}
+              count={taskCounts?.get(section.id)}
+            />
+          ))}
+          {sections.length === 0 && (
+            <p className="px-2 py-1 text-sm text-zinc-600">No spaces yet.</p>
+          )}
+        </div>
+
+        <div className="my-3 border-t border-white/10" />
+
+        <div className="-mx-2">
           <Tick
-            key={section.id}
-            checked={visible.has(section.id)}
-            onChange={(checked) => onToggleSection(section.id, checked)}
-            label={section.name}
-            color={sectionColor(section, i)}
-            count={taskCounts?.get(section.id)}
+            checked={showCompleted}
+            onChange={onToggleCompleted}
+            label="Completed tasks"
+            color="#4ee1a0"
           />
-        ))}
-        {sections.length === 0 && (
-          <p className="px-2 py-1 text-sm text-zinc-600">No spaces yet.</p>
+        </div>
+
+        {google && (
+          <>
+            <div className="my-3 border-t border-white/10" />
+            <div className="mb-1 flex items-baseline justify-between">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                Google Calendar
+              </h2>
+              {google.loading && (
+                <RefreshCw size={11} className="animate-spin text-zinc-600" />
+              )}
+            </div>
+            <GoogleBlock {...google} />
+          </>
         )}
       </div>
-
-      <div className="my-3 border-t border-white/10" />
-
-      <div className="-mx-2">
-        <Tick
-          checked={showCompleted}
-          onChange={onToggleCompleted}
-          label="Completed tasks"
-          color="#4ee1a0"
-        />
-      </div>
-
-      {google && (
-        <>
-          <div className="my-3 border-t border-white/10" />
-          <div className="mb-1 flex items-baseline justify-between">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-              Google Calendar
-            </h2>
-            {google.loading && (
-              <RefreshCw size={11} className="animate-spin text-zinc-600" />
-            )}
-          </div>
-          <GoogleBlock {...google} />
-        </>
-      )}
     </aside>
   );
 }

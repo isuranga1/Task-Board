@@ -16,6 +16,10 @@ import type { CalendarItem } from "./types";
 // useful at a glance; beyond this the cell height starts driving the whole grid.
 const MAX_CHIPS_PER_DAY = 3;
 
+// The phone-sized equivalent: bare colour markers, so a few more fit before
+// the cell has to stop showing them.
+const MAX_DOTS_PER_DAY = 6;
+
 interface MonthGridProps {
   month: Date;
   itemsByDay: Map<string, CalendarItem[]>;
@@ -82,8 +86,8 @@ export function MonthGrid({ month, itemsByDay, selectedDay, onSelectDay }: Month
             <button
               key={key}
               onClick={() => onSelectDay(day)}
-              className={`min-h-[5.5rem] border-b border-r border-white/[0.06] p-1.5 text-left align-top transition-colors
-                [&:nth-child(7n)]:border-r-0
+              className={`min-h-[3.25rem] border-b border-r border-white/[0.06] p-1 text-left align-top transition-colors
+                [&:nth-child(7n)]:border-r-0 sm:min-h-[5.5rem] sm:p-1.5
                 ${inMonth ? "" : "opacity-40"}
                 ${selected ? "bg-white/10" : "hover:bg-white/[0.04]"}`}
             >
@@ -95,11 +99,30 @@ export function MonthGrid({ month, itemsByDay, selectedDay, onSelectDay }: Month
                   {format(day, "d")}
                 </span>
                 {items.length > 0 && (
-                  <span className="text-[10px] text-zinc-600">{items.length}</span>
+                  <span className="hidden text-[10px] text-zinc-600 sm:inline">
+                    {items.length}
+                  </span>
                 )}
               </div>
 
-              <div className="space-y-0.5">
+              {/* A phone gives each cell roughly 50px of width — far too little
+                  for a title, even truncated. Below sm the day's items collapse
+                  to their colour markers alone; tapping the day opens DayDetail
+                  underneath, which is where the reading actually happens. */}
+              <div className="flex flex-wrap gap-0.5 sm:hidden">
+                {items.slice(0, MAX_DOTS_PER_DAY).map((item) => (
+                  <span
+                    key={item.id}
+                    aria-hidden
+                    className={`h-1.5 w-1.5 ${
+                      item.kind === "task" ? "rounded-[1px]" : "rounded-full"
+                    } ${item.kind === "task" && item.task.status === "done" ? "opacity-50" : ""}`}
+                    style={{ backgroundColor: item.color }}
+                  />
+                ))}
+              </div>
+
+              <div className="hidden space-y-0.5 sm:block">
                 {items.slice(0, MAX_CHIPS_PER_DAY).map((item) => (
                   <Chip key={item.id} item={item} />
                 ))}

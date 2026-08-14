@@ -181,7 +181,7 @@ function CardBody({
           </p>
           <ul className="space-y-1">
             {task.subtasks.map((subtask) => (
-              <li key={subtask.id} className="flex items-center gap-2 text-xs">
+              <li key={subtask.id} className="flex items-center gap-2 py-0.5 text-xs">
                 <input
                   type="checkbox"
                   checked={subtask.is_done}
@@ -190,7 +190,11 @@ function CardBody({
                     onToggleSubtask?.(subtask.id, e.target.checked);
                   }}
                   onPointerDown={(e) => e.stopPropagation()} // don't start a drag when clicking the checkbox
-                  className="accent-emerald-500"
+                  // ...and don't let the click carry on up to the card either,
+                  // which would open the detail modal on top of the tick you
+                  // just made. onPointerDown alone doesn't stop the click.
+                  onClick={(e) => e.stopPropagation()}
+                  className="h-4 w-4 shrink-0 accent-emerald-500"
                 />
                 <span
                   className={`${strikeMotionClass(subtask.is_done)} ${
@@ -227,7 +231,7 @@ export function TaskCard({ task, onToggleSubtask, onOpen, index = 0 }: TaskCardP
       {...attributes}
       onClick={() => onOpen(task)}
       style={staggerIndex(index)}
-      className={`glass glass-hover border-l-[3px] ${STATUS_ACCENT[task.status]}
+      className={`glass glass-hover no-callout touch-manipulation border-l-[3px] ${STATUS_ACCENT[task.status]}
         rounded-2xl p-3.5 mb-3 cursor-grab active:cursor-grabbing
         ${cardMotionClass(motion, task.status)}
         ${isDragging ? "opacity-30" : ""}`}

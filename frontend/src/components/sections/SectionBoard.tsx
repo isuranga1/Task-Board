@@ -3,6 +3,7 @@ import {
   DndContext,
   DragOverlay,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   type DragStartEvent,
@@ -41,8 +42,16 @@ export function SectionBoard({
   onDeleteGroup,
   onReorderSubsections,
 }: SectionBoardProps) {
+  // Two sensors, because a finger and a mouse need opposite activation rules.
+  // A mouse can start dragging as soon as it's moved 8px, since nothing else
+  // wants that gesture. A finger moving 8px is almost always trying to scroll
+  // the column carousel, so touch has to wait for a press to be HELD instead —
+  // long-press-then-drag, the same idiom as rearranging iOS home screen icons.
+  // `tolerance` lets the finger wobble a little during that hold without
+  // cancelling; exceeding it hands the gesture back to the scroller.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 8 } })
   );
 
   const [activeTask, setActiveTask] = useState<Task | null>(null);

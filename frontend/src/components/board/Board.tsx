@@ -22,7 +22,11 @@ export function Board({ subsectionId, tasks, onToggleSubtask, onOpenTask }: Boar
   const subsectionKey = subsectionId === null ? "none" : String(subsectionId);
 
   return (
-    <div className="flex gap-4 overflow-x-auto pb-4">
+    // On a phone all three columns can't share the width, so this becomes a
+    // snap carousel: one column fills the screen, the next peeks in at the
+    // edge to advertise that it's there. From sm the snapping switches off
+    // (see .snap-row in index.css) and it's an ordinary three-up row again.
+    <div className="snap-row flex gap-3 overflow-x-auto pb-4 sm:gap-4">
       {COLUMNS.map((col, i) => (
         <Column
           key={col.status}

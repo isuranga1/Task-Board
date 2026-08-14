@@ -28,14 +28,19 @@ export function DatePicker({ value, onChange }: DatePickerProps) {
   // Close the popover on any click outside it — standard pattern for any
   // popover/dropdown: listen on the whole document, check if the click
   // landed inside our container, close if not.
+  //
+  // pointerdown rather than mousedown: iOS Safari only synthesises mouse
+  // events for elements it considers clickable, so a tap on plain background
+  // never reached this handler and the calendar stayed stuck open. Pointer
+  // events fire for touch and mouse alike.
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
+    function handleClickOutside(e: PointerEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false);
       }
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("pointerdown", handleClickOutside);
+    return () => document.removeEventListener("pointerdown", handleClickOutside);
   }, []);
 
   const selectedDate = value ? parseISO(value) : null;
@@ -77,7 +82,7 @@ export function DatePicker({ value, onChange }: DatePickerProps) {
       </button>
 
       {open && (
-        <div className="absolute z-10 mt-2 glass-panel rounded-2xl p-3 shadow-xl w-64">
+        <div className="absolute z-10 mt-2 glass-panel rounded-2xl p-3 shadow-xl w-72 sm:w-64">
           <div className="flex items-center justify-between mb-2">
             <button
               type="button"
@@ -115,7 +120,10 @@ export function DatePicker({ value, onChange }: DatePickerProps) {
                   type="button"
                   key={day.toISOString()}
                   onClick={() => selectDay(day)}
-                  className={`text-xs h-7 w-7 rounded-full flex items-center justify-center transition-colors
+                  // Fills its grid track on a phone rather than sitting as a
+                  // 28px dot in the middle of it — same layout, a tap target
+                  // you can actually hit.
+                  className={`text-xs h-9 w-full rounded-lg flex items-center justify-center transition-colors sm:h-7 sm:w-7 sm:rounded-full
                     ${!inCurrentMonth ? "text-zinc-700" : "text-zinc-300"}
                     ${isSelected ? "bg-white text-black font-medium" : "hover:bg-white/10"}
                     ${isToday(day) && !isSelected ? "ring-1 ring-indigo-400" : ""}

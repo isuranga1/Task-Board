@@ -50,8 +50,11 @@ export function GrowthOrb() {
     <>
       {open && (
         <div
-          className={`glass-panel fixed bottom-24 right-5 z-40 w-[min(23rem,calc(100vw-2.5rem))]
-            rounded-3xl p-5 sm:right-8 ${orbPanelMotionClass()}`}
+          // Stacked above the orb, which is itself lifted above the mobile
+          // bottom nav — hence the taller offset below sm.
+          className={`glass-panel fixed bottom-[calc(8.75rem+env(safe-area-inset-bottom))] right-5 z-40
+            w-[min(23rem,calc(100vw-2.5rem))] rounded-3xl p-5
+            sm:bottom-24 sm:right-8 ${orbPanelMotionClass()}`}
         >
           <div className="mb-3 flex items-start justify-between gap-3">
             <div>
@@ -120,7 +123,9 @@ export function GrowthOrb() {
           Keeping them apart matters: motion.css loads after Tailwind, so any
           `position` the motion class set would beat the `fixed` utility and
           drop the orb into normal flow. */}
-      <div className="fixed bottom-5 right-5 z-40 sm:right-8">
+      {/* On a phone the nav is a bar along the bottom edge, so the orb has to
+          sit above it rather than on top of it. */}
+      <div className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-5 z-40 sm:bottom-5 sm:right-8">
         <button
           onClick={handleOpen}
           className={`glass relative flex h-14 w-14 items-center justify-center rounded-full

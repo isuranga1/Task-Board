@@ -69,8 +69,8 @@ export function Deadlines() {
   return (
     <div className="mx-auto max-w-6xl">
       <div className="mb-6">
-        <h1 className="mb-1 flex items-center gap-2 text-3xl font-bold tracking-tight text-white">
-          <CalendarClock size={26} className="text-indigo-300" /> Deadlines
+        <h1 className="mb-1 flex items-center gap-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">
+          <CalendarClock size={24} className="text-indigo-300" /> Deadlines
         </h1>
         <p className="flex items-center gap-2 text-sm text-zinc-400">
           Every space, in the order things are actually due.

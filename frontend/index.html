@@ -6,7 +6,22 @@
          than ordinary assets and often ignore a hard refresh, so bump this
          number whenever favicon.svg changes. -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover lets the page paint behind the iPhone's rounded
+         corners and home indicator; the safe-area insets in index.css are what
+         keep actual content out from under them. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <!-- Added to the home screen on iOS, this runs without Safari's chrome.
+         "black-translucent" lets the dark background wash run up behind the
+         status bar rather than leaving a grey band above it. iOS ignores SVG
+         icons, so the touch icon has to be a real PNG. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Little steps" />
+    <meta name="theme-color" content="#0b0b14" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

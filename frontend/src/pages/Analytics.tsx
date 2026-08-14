@@ -87,9 +87,9 @@ export function Analytics() {
   return (
     <div className="mx-auto max-w-6xl">
       <div className="flex items-center justify-between mb-1">
-        <h1 className="text-3xl font-bold text-white tracking-tight">Insights</h1>
+        <h1 className="text-2xl font-bold text-white tracking-tight sm:text-3xl">Insights</h1>
       </div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
         <p className="text-zinc-400 text-sm">A quick look at how things are going.</p>
         <select
           value={sectionId}

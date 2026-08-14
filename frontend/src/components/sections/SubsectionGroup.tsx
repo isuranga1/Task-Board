@@ -84,23 +84,26 @@ export function SubsectionGroup({
 
   return (
     <div ref={setNodeRef} style={style} className={`mb-8 ${isDragging ? "opacity-40" : ""}`}>
-      <div className="group flex items-center gap-2 mb-3">
+      {/* flex-wrap so a long group name plus the inline "add task" field drop
+          onto a second line on a phone instead of squeezing each other out. */}
+      <div className="group mb-3 flex flex-wrap items-center gap-2">
         {subsection && (
           <button
             type="button"
             {...attributes}
             {...listeners}
-            className="text-zinc-600 hover:text-zinc-300 cursor-grab active:cursor-grabbing touch-none opacity-0 group-hover:opacity-100 transition-opacity"
+            className="hover-reveal -m-1 cursor-grab touch-manipulation p-1 text-zinc-600 hover:text-zinc-300 active:cursor-grabbing"
             title="Drag to reorder"
           >
-            <GripVertical size={14} />
+            <GripVertical size={15} />
           </button>
         )}
         <button
           onClick={() => setCollapsed((c) => !c)}
-          className="text-zinc-500 hover:text-zinc-300 transition-colors"
+          className="-m-1 p-1 text-zinc-500 transition-colors hover:text-zinc-300"
+          aria-label={collapsed ? "Expand group" : "Collapse group"}
         >
-          {collapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+          {collapsed ? <ChevronRight size={17} /> : <ChevronDown size={17} />}
         </button>
         {editingName ? (
           <form onSubmit={commitName}>
@@ -159,20 +162,20 @@ export function SubsectionGroup({
             Hidden until hover so the header doesn't look cluttered by
             default. Double-clicking the title renames too. */}
         {subsection && (
-          <div className="flex items-center gap-2 ml-auto">
+          <div className="ml-auto flex items-center gap-1">
             <button
               onClick={startEditingName}
-              className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-indigo-300 transition-opacity"
+              className="hover-reveal p-1.5 text-zinc-600 hover:text-indigo-300"
               title="Rename group"
             >
-              <Pencil size={13} />
+              <Pencil size={14} />
             </button>
             <button
               onClick={handleDeleteGroup}
-              className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 transition-opacity"
+              className="hover-reveal p-1.5 text-zinc-600 hover:text-red-400"
               title="Delete group"
             >
-              <X size={14} />
+              <X size={15} />
             </button>
           </div>
         )}

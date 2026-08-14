@@ -30,7 +30,8 @@ export function Column({
     <div
       ref={setNodeRef}
       style={staggerIndex(index)}
-      className={`flex-1 min-w-[280px] rounded-2xl p-4 glass transition-colors
+      className={`snap-col w-[85vw] max-w-[20rem] shrink-0 rounded-2xl p-3.5 glass transition-colors
+        sm:w-auto sm:max-w-none sm:min-w-[280px] sm:flex-1 sm:p-4
         ${columnMotionClass(isOver)}
         ${isOver ? "bg-white/10" : ""}`}
     >

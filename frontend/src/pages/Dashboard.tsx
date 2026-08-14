@@ -203,7 +203,7 @@ export function Dashboard() {
 
   return (
     <div className="mx-auto max-w-6xl">
-      <h1 className="text-3xl font-bold text-white mb-1 tracking-tight">My Board</h1>
+      <h1 className="text-2xl font-bold text-white mb-1 tracking-tight sm:text-3xl">My Board</h1>
       <p className="text-zinc-400 text-sm mb-6">Everything you're working on, in one calm place.</p>
 
       <SectionTabs

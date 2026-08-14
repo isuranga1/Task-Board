@@ -1,6 +1,13 @@
 import { useState, useRef } from "react";
 import { X, Plus, Trash2, Paperclip, Upload, Link as LinkIcon } from "lucide-react";
-import type { Task, TaskUpdatePayload, Link, Subsection, TaskPriority } from "../../types";
+import type {
+  Task,
+  TaskUpdatePayload,
+  Link,
+  Subsection,
+  TaskPriority,
+  TaskStatus,
+} from "../../types";
 import { DatePicker } from "../shared/DatePicker";
 import { LinkRow } from "./LinkRow";
 import { EmbedPreview } from "./EmbedPreview";
@@ -30,6 +37,14 @@ const PRIORITY_STYLES: Record<TaskPriority, string> = {
   high: "bg-orange-400/10 text-orange-300",
   urgent: "bg-rose-400/10 text-rose-300",
 };
+
+// Labels match the board's own column headings so the two never disagree
+// about what a status is called.
+const STATUSES: { value: TaskStatus; label: string; active: string }[] = [
+  { value: "todo", label: "To Do", active: "bg-[var(--color-accent-todo)] text-black" },
+  { value: "in_progress", label: "Doing", active: "bg-[var(--color-accent-progress)] text-black" },
+  { value: "done", label: "Done", active: "bg-[var(--color-accent-done)] text-black" },
+];
 
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -67,6 +82,11 @@ export function TaskDetailModal({
   const [dueDate, setDueDate] = useState(task.due_date ?? "");
   const [remindAt, setRemindAt] = useState(task.remind_at ?? "");
   const [priority, setPriority] = useState<TaskPriority>(task.priority);
+  // Dragging a card between columns is the other way to set this, and it's the
+  // only way on desktop. It's unusable on a phone though — the columns are a
+  // horizontal carousel there, so the drag target is usually off-screen — so
+  // status is an editable field too, saved with everything else.
+  const [status, setStatus] = useState<TaskStatus>(task.status);
   const [ticketCode, setTicketCode] = useState(task.ticket_code ?? "");
   const [subsectionId, setSubsectionId] = useState<number | null>(task.subsection_id);
   const [links, setLinks] = useState<Link[]>(task.task_metadata.links ?? []);
@@ -115,6 +135,7 @@ export function TaskDetailModal({
         due_date: dueDate === "" ? null : dueDate,
         remind_at: remindAt === "" ? null : remindAt,
         priority,
+        status,
         ticket_code: ticketCode.trim() === "" ? null : ticketCode,
         subsection_id: subsectionId,
         task_metadata: { ...task.task_metadata, links: cleanLinks, tags },
@@ -200,13 +221,26 @@ export function TaskDetailModal({
     // Backdrop — clicking outside the modal card closes it, clicking inside
     // the card itself must NOT close it, hence stopPropagation on the inner div.
     <div
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      // On a phone this is a bottom sheet: pinned to the bottom edge, full
+      // width, rounded only along the top. From sm it's the centered card it
+      // has always been. dvh rather than vh so Safari's toolbar doesn't eat
+      // the footer with the Save button in it.
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center sm:p-4"
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="glass-panel rounded-3xl w-full max-w-lg max-h-[85vh] overflow-y-auto p-6"
+        className="glass-panel max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-3xl p-5
+          pb-[calc(1.25rem+env(safe-area-inset-bottom))]
+          sm:max-h-[85dvh] sm:rounded-3xl sm:p-6 sm:pb-6"
       >
+        {/* A short grab bar — the standard "this sheet came up from the
+            bottom, it can go back down" cue on iOS. Purely decorative. */}
+        <div
+          aria-hidden
+          className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/20 sm:hidden"
+        />
+
         <div className="flex justify-between items-start mb-4">
           <input
             value={title}
@@ -215,13 +249,37 @@ export function TaskDetailModal({
           />
           <button
             onClick={onClose}
-            className="text-zinc-500 hover:text-zinc-200 shrink-0 transition-colors"
+            aria-label="Close"
+            className="-m-1.5 shrink-0 p-1.5 text-zinc-500 transition-colors hover:text-zinc-200"
           >
             <X size={20} />
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="mb-4">
+          <label className="text-xs text-zinc-400 block mb-1">Status</label>
+          <div className="flex gap-1.5">
+            {STATUSES.map((s) => (
+              <button
+                key={s.value}
+                type="button"
+                onClick={() => setStatus(s.value)}
+                aria-pressed={status === s.value}
+                className={`flex-1 rounded-xl px-2 py-2 text-xs font-medium transition-colors ${
+                  status === s.value
+                    ? s.active
+                    : "bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200"
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* One column on a phone — two of these side by side leaves the date
+            picker about 130px wide, which its popover can't live in. */}
+        <div className="grid grid-cols-1 gap-4 mb-4 sm:grid-cols-2">
           <div>
             <label className="text-xs text-zinc-400 block mb-1">Due date</label>
             <DatePicker value={dueDate} onChange={setDueDate} />
@@ -241,7 +299,7 @@ export function TaskDetailModal({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-1 gap-4 mb-4 sm:grid-cols-2">
           <div>
             <label className="text-xs text-zinc-400 block mb-1">
               Reference <span className="text-zinc-600">— optional</span>
@@ -334,7 +392,7 @@ export function TaskDetailModal({
                     type="checkbox"
                     checked={subtask.is_done}
                     onChange={(e) => handleToggleSubtask(subtask.id, e.target.checked)}
-                    className="accent-emerald-500 shrink-0"
+                    className="h-4 w-4 shrink-0 accent-emerald-500"
                   />
                   {/* The strike lives on an inner inline span so the line hugs
                       the text instead of stretching across the whole row. */}
@@ -349,10 +407,10 @@ export function TaskDetailModal({
                   </span>
                   <button
                     onClick={() => handleDeleteSubtask(subtask.id)}
-                    className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-rose-300 shrink-0 transition-opacity"
+                    className="hover-reveal -m-1 shrink-0 p-1 text-zinc-500 hover:text-rose-300"
                     title="Delete item"
                   >
-                    <Trash2 size={12} />
+                    <Trash2 size={13} />
                   </button>
                 </div>
               ))}
@@ -532,21 +590,21 @@ export function TaskDetailModal({
           <button
             onClick={handleDelete}
             disabled={deleting}
-            className="flex items-center gap-1 px-3 py-1.5 text-sm text-rose-300 hover:text-rose-200 disabled:opacity-50 transition-colors"
+            className="flex items-center gap-1 px-3 py-2 text-sm text-rose-300 hover:text-rose-200 disabled:opacity-50 transition-colors"
           >
             <Trash2 size={14} /> {deleting ? "Deleting…" : "Delete"}
           </button>
           <div className="flex gap-2">
             <button
               onClick={onClose}
-              className="px-3 py-1.5 text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
+              className="px-3 py-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
               disabled={saving}
-              className="px-4 py-1.5 text-sm bg-white hover:bg-zinc-200 disabled:opacity-50 text-black font-medium rounded-full transition-colors"
+              className="px-5 py-2 text-sm bg-white hover:bg-zinc-200 disabled:opacity-50 text-black font-medium rounded-full transition-colors"
             >
               {saving ? "Saving…" : "Save"}
             </button>

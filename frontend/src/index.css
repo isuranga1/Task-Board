@@ -18,12 +18,77 @@ html {
 }
 
 body {
-  min-height: 100vh;
+  /* dvh, not vh: on iOS Safari `100vh` is the LARGE viewport (URL bar hidden),
+     so a 100vh page is always taller than what you can actually see and the
+     last few rems sit under the toolbar. */
+  min-height: 100dvh;
   background-color: var(--color-bg);
   color: #f0f0f5;
   font-family: var(--font-sans);
   position: relative;
   overflow-x: hidden;
+  /* Stops the grey flash iOS paints over every button/link you touch. */
+  -webkit-tap-highlight-color: transparent;
+  /* Kills the rubber-band bounce past the top/bottom of the page, which in a
+     standalone home-screen app makes the whole UI look like it's coming loose. */
+  overscroll-behavior-y: none;
+}
+
+/* iOS zooms the page in whenever you focus a field whose font-size is under
+   16px, and never zooms back out. Every input in this app is text-xs/text-sm
+   for density, so on phone-sized screens they're bumped to 16px instead —
+   the alternative (maximum-scale=1 on the viewport) would also block pinch
+   zoom everywhere, which is a real accessibility loss for a cosmetic gain. */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* Controls that fade in on hover. A touchscreen has no hover state, so on
+   those devices they're simply always visible — otherwise the rename/delete
+   buttons on groups and spaces are unreachable from a phone entirely. */
+.hover-reveal {
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+.group:hover .hover-reveal,
+.hover-reveal:focus-visible {
+  opacity: 1;
+}
+@media (hover: none) {
+  .hover-reveal {
+    opacity: 1;
+  }
+}
+
+/* A held press on a card starts a drag (see the TouchSensor in SectionBoard).
+   iOS reads that same gesture as "select this text", and pops the magnifier
+   and a copy/lookup callout over the card just as it lifts off. */
+.no-callout {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* The board's columns scroll horizontally on a phone, one column at a time.
+   Snapping is what makes that read as "pages" rather than a loose smear. */
+.snap-row {
+  scroll-snap-type: x mandatory;
+  scroll-padding-left: 0.25rem;
+  -webkit-overflow-scrolling: touch;
+}
+.snap-col {
+  scroll-snap-align: start;
+}
+@media (min-width: 640px) {
+  /* Back to a plain flex row on anything wider — all three columns are
+     visible at once there, so snapping would only fight the mouse. */
+  .snap-row {
+    scroll-snap-type: none;
+  }
 }
 
 /* Soft, blurred color wash behind everything — the "wallpaper" a glass UI floats on */
@@ -98,4 +163,15 @@ select option {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
   background-clip: padding-box;
+}
+
+/* Styling ::-webkit-scrollbar at all opts Safari out of its native overlay
+   scrollbars, so on touch the rules above would carve a permanent 10px gutter
+   out of every scrollable area. Hand it back on devices that don't have a
+   pointer to aim at one anyway. */
+@media (hover: none) {
+  ::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
 }

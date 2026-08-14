@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   DndContext,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -118,7 +119,11 @@ function SortableTab({
       {...listeners}
       onClick={onSelect}
       onDoubleClick={startEditing}
-      className={`group flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all cursor-grab active:cursor-grabbing touch-none
+      // touch-manipulation rather than touch-none: `none` would stop the page
+      // scrolling whenever a swipe happened to begin on a tab. The delay-based
+      // TouchSensor already suppresses scrolling once a drag actually starts,
+      // and this still drops the 300ms double-tap-to-zoom delay on the tap.
+      className={`group flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all cursor-grab active:cursor-grabbing touch-manipulation
         ${isDragging ? "opacity-40" : ""}
         ${isActive ? "glass text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}
       style={
@@ -133,22 +138,25 @@ function SortableTab({
       {section.name}
       {/* Only visible on hover — keeps the tab bar uncluttered until you
           actually mean to rename or delete something. Double-clicking the
-          tab renames too; this icon is just the discoverable version of it. */}
+          tab renames too; this icon is just the discoverable version of it.
+          On a touchscreen there is no hover and no double-click either, so
+          .hover-reveal pins both icons open there (see index.css) — they're
+          the only way to rename or delete a space from a phone. */}
       <span
         role="button"
         onClick={startEditing}
         title="Rename space"
-        className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-indigo-300 transition-opacity"
+        className="hover-reveal -m-1 p-1 text-zinc-500 hover:text-indigo-300"
       >
-        <Pencil size={11} />
+        <Pencil size={12} />
       </span>
       <span
         role="button"
         onClick={onDelete}
         title="Delete space"
-        className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-red-300 transition-opacity"
+        className="hover-reveal -m-1 p-1 text-zinc-500 hover:text-red-300"
       >
-        <X size={12} />
+        <X size={13} />
       </span>
     </button>
   );
@@ -167,8 +175,12 @@ export function SectionTabs({
   const [newName, setNewName] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // Same split as the board's sensors: a mouse drags on movement, a finger has
+  // to hold first — otherwise swiping across the tab strip to reach a space
+  // that's scrolled off-screen would reorder it instead of scrolling to it.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 8 } })
   );
 
   async function handleSubmit(e: React.FormEvent) {

@@ -134,8 +134,8 @@ export function CalendarView() {
     <div className="mx-auto max-w-6xl">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="mb-1 flex items-center gap-2 text-3xl font-bold tracking-tight text-white">
-            <CalendarDays size={26} className="text-indigo-300" /> Calendar
+          <h1 className="mb-1 flex items-center gap-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">
+            <CalendarDays size={24} className="text-indigo-300" /> Calendar
           </h1>
           <p className="text-sm text-zinc-400">
             Task deadlines and your Google events, side by side.

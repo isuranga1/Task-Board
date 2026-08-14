@@ -75,6 +75,36 @@ dashboard fetches sections from `http://localhost:8000` on load.
   ~18 topic areas so it doesn't keep suggesting the same five things. Needs an
   OpenRouter key; setup is in `DEPLOY.md` §9 and it's entirely optional.
 - **Drag and drop**: drag a card between Todo/In Progress/Done to change status.
+  On a touchscreen, *hold* a card for a moment first and then drag — a plain
+  swipe scrolls the board instead, which is what you want the rest of the time.
+
+## On a phone
+
+The whole dashboard is built to be used from a phone browser, not just a
+desktop one. Point Safari at the same address you'd use on a laptop (over
+Tailscale, that's `http://<pi-tailscale-address>`) and everything works.
+
+What changes below ~640px wide:
+
+- **Navigation** moves from the floating pill at the top to a bar along the
+  bottom edge, within thumb reach.
+- **The board's three columns** become a snap carousel — one column fills the
+  screen, swipe sideways for the next.
+- **Task status** gains a To Do / Doing / Done selector inside the task detail
+  sheet. Dragging still works, but the column you're dragging *to* is usually
+  off-screen on a phone, so the selector is the practical route.
+- **Task details** open as a bottom sheet rather than a centered dialog.
+- **The calendar's** day cells show coloured dots instead of titles; tap a day
+  to read what's on it in the panel underneath.
+- **Filters** on the Deadlines and Calendar tabs collapse behind a "Filters"
+  button so they don't push the list off-screen.
+- **Rename/delete buttons** that appear on hover on a desktop are simply always
+  visible on a touchscreen, since there's no hover to trigger them with.
+
+**Add to Home Screen** (Safari → Share → Add to Home Screen) gives it an icon
+and runs it without Safari's chrome. Note there's no service worker, so this
+is a bookmark with a nice icon rather than an offline-capable app — with the
+backend unreachable it will show the "couldn't reach the API" message.
 
 ## Notes
 
