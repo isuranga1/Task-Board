@@ -92,7 +92,7 @@ export function SubsectionGroup({
             type="button"
             {...attributes}
             {...listeners}
-            className="hover-reveal -m-1 cursor-grab touch-manipulation p-1 text-zinc-600 hover:text-zinc-300 active:cursor-grabbing"
+            className="hover-reveal drag-only -m-1 cursor-grab p-1 text-zinc-600 hover:text-zinc-300 active:cursor-grabbing"
             title="Drag to reorder"
           >
             <GripVertical size={15} />

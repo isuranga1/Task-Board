@@ -64,9 +64,19 @@ body {
   }
 }
 
-/* A held press on a card starts a drag (see the TouchSensor in SectionBoard).
-   iOS reads that same gesture as "select this text", and pops the magnifier
-   and a copy/lookup callout over the card just as it lifts off. */
+/* Drag-and-drop is mouse-only (see the MouseSensor in SectionBoard), so the
+   handles that exist purely to be dragged are hidden where there's no mouse.
+   A visible control that does nothing when you press it is worse than no
+   control at all — and .hover-reveal above would otherwise pin them open on
+   exactly the devices that can't use them. */
+@media (hover: none) {
+  .drag-only {
+    display: none;
+  }
+}
+
+/* Cards are tapped, not read as prose. Without this a slightly-too-long press
+   on one pops iOS's selection magnifier and a Copy/Look Up callout over it. */
 .no-callout {
   -webkit-touch-callout: none;
   -webkit-user-select: none;

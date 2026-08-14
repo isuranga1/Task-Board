@@ -2,8 +2,7 @@ import { useState } from "react";
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
-  TouchSensor,
+  MouseSensor,
   useSensor,
   useSensors,
   type DragStartEvent,
@@ -42,16 +41,17 @@ export function SectionBoard({
   onDeleteGroup,
   onReorderSubsections,
 }: SectionBoardProps) {
-  // Two sensors, because a finger and a mouse need opposite activation rules.
-  // A mouse can start dragging as soon as it's moved 8px, since nothing else
-  // wants that gesture. A finger moving 8px is almost always trying to scroll
-  // the column carousel, so touch has to wait for a press to be HELD instead —
-  // long-press-then-drag, the same idiom as rearranging iOS home screen icons.
-  // `tolerance` lets the finger wobble a little during that hold without
-  // cancelling; exceeding it hands the gesture back to the scroller.
+  // MouseSensor, deliberately, NOT PointerSensor: pointer events cover touch
+  // as well, so a pointer sensor turns every 8px finger movement over a card
+  // into a drag — you scroll the board and cards come away in your hand.
+  // Dragging is therefore mouse-only, and a phone changes a task's status
+  // through the selector in TaskDetailModal instead.
+  //
+  // (Pairing PointerSensor with a delayed TouchSensor does NOT fix this: both
+  // claim the same touch, and the pointer sensor's distance constraint always
+  // wins the race against the touch sensor's delay.)
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 8 } })
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } })
   );
 
   const [activeTask, setActiveTask] = useState<Task | null>(null);

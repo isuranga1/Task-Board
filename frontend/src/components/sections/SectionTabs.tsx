@@ -1,8 +1,7 @@
 import { useState } from "react";
 import {
   DndContext,
-  PointerSensor,
-  TouchSensor,
+  MouseSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -120,9 +119,9 @@ function SortableTab({
       onClick={onSelect}
       onDoubleClick={startEditing}
       // touch-manipulation rather than touch-none: `none` would stop the page
-      // scrolling whenever a swipe happened to begin on a tab. The delay-based
-      // TouchSensor already suppresses scrolling once a drag actually starts,
-      // and this still drops the 300ms double-tap-to-zoom delay on the tap.
+      // scrolling whenever a swipe happened to begin on a tab. Nothing needs
+      // to claim the touch here now that reordering is mouse-only, and this
+      // still drops the 300ms double-tap-to-zoom delay on the tap itself.
       className={`group flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all cursor-grab active:cursor-grabbing touch-manipulation
         ${isDragging ? "opacity-40" : ""}
         ${isActive ? "glass text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}
@@ -175,12 +174,10 @@ export function SectionTabs({
   const [newName, setNewName] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Same split as the board's sensors: a mouse drags on movement, a finger has
-  // to hold first — otherwise swiping across the tab strip to reach a space
-  // that's scrolled off-screen would reorder it instead of scrolling to it.
+  // Mouse-only for the same reason as the board's sensors — a pointer sensor
+  // would reorder your spaces every time you tried to swipe past the tab strip.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 8 } })
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } })
   );
 
   async function handleSubmit(e: React.FormEvent) {
