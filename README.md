@@ -88,11 +88,11 @@ What changes below ~640px wide:
 
 - **Navigation** moves from the floating pill at the top to a bar along the
   bottom edge, within thumb reach.
-- **The board's three columns** become a snap carousel — one column fills the
-  screen, swipe sideways for the next.
-- **Task status** gains a To Do / Doing / Done selector inside the task detail
-  sheet. Dragging still works, but the column you're dragging *to* is usually
-  off-screen on a phone, so the selector is the practical route.
+- **The board's three columns** stack vertically — To Do, then Doing, then
+  Done — and you scroll down through them. Dragging a card between them is one
+  vertical gesture, and the page scrolls itself as you near the edge.
+- **Task status** also gains a To Do / Doing / Done selector inside the task
+  detail sheet, for when a drag isn't convenient.
 - **Task details** open as a bottom sheet rather than a centered dialog.
 - **The calendar's** day cells show coloured dots instead of titles; tap a day
   to read what's on it in the panel underneath.

@@ -73,24 +73,6 @@ body {
   user-select: none;
 }
 
-/* The board's columns scroll horizontally on a phone, one column at a time.
-   Snapping is what makes that read as "pages" rather than a loose smear. */
-.snap-row {
-  scroll-snap-type: x mandatory;
-  scroll-padding-left: 0.25rem;
-  -webkit-overflow-scrolling: touch;
-}
-.snap-col {
-  scroll-snap-align: start;
-}
-@media (min-width: 640px) {
-  /* Back to a plain flex row on anything wider — all three columns are
-     visible at once there, so snapping would only fight the mouse. */
-  .snap-row {
-    scroll-snap-type: none;
-  }
-}
-
 /* Soft, blurred color wash behind everything — the "wallpaper" a glass UI floats on */
 body::before {
   content: "";

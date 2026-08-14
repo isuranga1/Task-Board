@@ -22,11 +22,14 @@ export function Board({ subsectionId, tasks, onToggleSubtask, onOpenTask }: Boar
   const subsectionKey = subsectionId === null ? "none" : String(subsectionId);
 
   return (
-    // On a phone all three columns can't share the width, so this becomes a
-    // snap carousel: one column fills the screen, the next peeks in at the
-    // edge to advertise that it's there. From sm the snapping switches off
-    // (see .snap-row in index.css) and it's an ordinary three-up row again.
-    <div className="snap-row flex gap-3 overflow-x-auto pb-4 sm:gap-4">
+    // On a phone the three columns stack and you scroll down through them.
+    // The obvious alternative — a horizontal carousel — reads well but drags
+    // badly: a sideways swipe is ambiguous between "scroll the board" and
+    // "move this card", and dnd-kit's auto-scroll can't drive a snap-scroll
+    // container the way it drives the window. Stacked, a drag is one vertical
+    // gesture and the page scrolls itself as you approach the edge.
+    // From sm there's room for all three side by side, as before.
+    <div className="flex flex-col gap-3 pb-4 sm:flex-row sm:gap-4 sm:overflow-x-auto">
       {COLUMNS.map((col, i) => (
         <Column
           key={col.status}

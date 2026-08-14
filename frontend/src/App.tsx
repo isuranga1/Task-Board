@@ -57,15 +57,32 @@ function App() {
   }, [banner]);
 
   return (
-    <div className="min-h-dvh">
+    // The safe-area insets are what keep content clear of the hardware the
+    // page is painting behind. viewport-fit=cover (index.html) deliberately
+    // extends the page under the status bar / Dynamic Island so the background
+    // wash runs edge to edge — without this padding, the first heading would
+    // sit under the clock. The left/right insets matter in landscape, where
+    // the island eats into the side of the screen instead of the top.
+    //
+    // All three resolve to 0 in a desktop browser and in ordinary Safari
+    // portrait (where Safari's own chrome already occupies that space), so
+    // this costs nothing anywhere it isn't needed.
+    <div
+      className="min-h-dvh pt-[env(safe-area-inset-top)]
+        pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]"
+    >
       {/* Two shapes, one list. On a phone the four labelled tabs simply don't
           fit across 375px as a centered pill, so they become a full-width bar
           pinned to the bottom — within thumb reach, and the same place iOS
           puts navigation in every native app. The floating top pill returns
           at sm, where there's room for it. */}
       <nav
+        // Fixed, so it sits outside the wrapper's safe-area padding and has to
+        // carry its own — including left/right, which is what stops the first
+        // tab hiding under the island in landscape.
         className="glass fixed inset-x-0 bottom-0 z-30 flex items-stretch rounded-none
           pb-[env(safe-area-inset-bottom)]
+          pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]
           sm:sticky sm:inset-x-auto sm:bottom-auto sm:top-4 sm:mx-auto sm:mb-2 sm:w-fit sm:items-center
           sm:gap-1 sm:rounded-full sm:p-1 sm:px-1.5 sm:pb-1"
       >

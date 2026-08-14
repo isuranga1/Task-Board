@@ -30,8 +30,8 @@ export function Column({
     <div
       ref={setNodeRef}
       style={staggerIndex(index)}
-      className={`snap-col w-[85vw] max-w-[20rem] shrink-0 rounded-2xl p-3.5 glass transition-colors
-        sm:w-auto sm:max-w-none sm:min-w-[280px] sm:flex-1 sm:p-4
+      className={`w-full rounded-2xl p-3.5 glass transition-colors
+        sm:w-auto sm:min-w-[280px] sm:flex-1 sm:p-4
         ${columnMotionClass(isOver)}
         ${isOver ? "bg-white/10" : ""}`}
     >
@@ -45,7 +45,11 @@ export function Column({
       </h2>
 
       {tasks.length === 0 ? (
-        <p className="text-zinc-500 text-sm italic">Nothing here yet.</p>
+        // Given a min height so an empty column is still a drop target you can
+        // comfortably hit with a finger, rather than one line of italic text.
+        <p className="flex min-h-14 items-center text-sm italic text-zinc-500">
+          Nothing here yet.
+        </p>
       ) : (
         tasks.map((task, i) => (
           <TaskCard
