@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class TaskStatus(str, Enum):
@@ -88,6 +88,10 @@ class TaskBase(BaseModel):
     remind_at: date | None = None
     subsection_id: int | None = None
     task_metadata: TaskMetadata = TaskMetadata()
+    # What you got out of finishing it. Both stay None if the prompt that
+    # appears on completion is skipped — see models.Task.
+    satisfaction: int | None = Field(default=None, ge=1, le=5)
+    reflection: str | None = None
 
 
 class TaskCreate(TaskBase):
@@ -106,6 +110,8 @@ class TaskUpdate(BaseModel):
     remind_at: date | None = None
     subsection_id: int | None = None
     task_metadata: TaskMetadata | None = None
+    satisfaction: int | None = Field(default=None, ge=1, le=5)
+    reflection: str | None = None
 
 
 class TaskRead(TaskBase):
@@ -119,6 +125,9 @@ class TaskRead(TaskBase):
     # settable directly via TaskCreate/TaskUpdate.
     started_at: datetime | None = None
     completed_at: datetime | None = None
+    # Also server-computed: stamped whenever a reflection is written, cleared
+    # when one is emptied. Not settable directly.
+    reflected_at: datetime | None = None
     subtasks: list[SubtaskRead] = []
     depends_on: list[TaskSummary] = []
     blocks: list[TaskSummary] = []
@@ -249,6 +258,63 @@ class GrowthStatus(BaseModel):
     # The most recent tip, so reopening the panel shows what you last got
     # instead of an empty box that implies you have to spend a request.
     latest: GrowthTipRead | None = None
+
+
+# ---------- Period review (the week/month/year look-back) ----------
+
+class CompletedTaskBrief(BaseModel):
+    """One finished task as the review page lists it.
+
+    Not TaskRead: this is a read-only recap, and shipping every task's
+    subtasks, links and dependency graph to render a one-line row would be a
+    lot of payload for a year's worth of work.
+    """
+    id: int
+    title: str
+    section_name: str
+    completed_at: datetime | None = None
+    satisfaction: int | None = None
+    reflection: str | None = None
+
+
+class PeriodSummaryRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    period: str
+    period_start: date
+    period_end: date
+    label: str
+    headline: str
+    narrative: str
+    themes: list[str] = []
+    advice: str | None = None
+    # How many completed tasks it was written from — compared against the live
+    # count to work out whether it has fallen behind.
+    task_count: int
+    created_at: datetime
+
+
+class PeriodReview(BaseModel):
+    """Everything the look-back panel needs in one request.
+
+    The completed-task list and the written summary are deliberately in the
+    same response: reading what you finished is free and should never require
+    spending a request, so the page is useful before the LLM is ever called.
+    """
+    period: str
+    period_start: date
+    period_end: date
+    label: str
+    completed: list[CompletedTaskBrief] = []
+    # How many of those carry a reflection — what the summary has to work with.
+    reflected_count: int = 0
+    summary: PeriodSummaryRead | None = None
+    # A summary exists but more has been finished since it was written.
+    stale: bool = False
+    configured: bool
+    used_today: int
+    daily_limit: int
+    remaining: int
 
 
 # ---------- Analytics ----------

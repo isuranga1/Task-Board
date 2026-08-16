@@ -58,6 +58,12 @@ class Settings(BaseSettings):
     # can't quietly run up a bill.
     growth_daily_limit: int = 25
 
+    # Same idea for the week/month/year look-back, on its own counter so a busy
+    # day of Grow clicks can't leave you unable to write a weekly review. The
+    # ceiling is lower because a review is a much bigger prompt (every completed
+    # task and its reflection) and you only genuinely need a handful a day.
+    summary_daily_limit: int = 10
+
     @model_validator(mode="after")
     def _blank_urls_fall_back_to_defaults(self):
         # docker-compose passes optional vars through as `${FOO:-}`, which sets
@@ -78,8 +84,13 @@ class Settings(BaseSettings):
         return bool(self.google_client_id and self.google_client_secret)
 
     @property
-    def growth_configured(self) -> bool:
+    def llm_configured(self) -> bool:
+        """One key powers every LLM feature, so they're switched on together."""
         return bool(self.openrouter_api_key.strip())
+
+    @property
+    def growth_configured(self) -> bool:
+        return self.llm_configured
 
     class Config:
         env_file = ".env"

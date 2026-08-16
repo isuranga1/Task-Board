@@ -14,9 +14,12 @@ import { CalendarDays, ChevronLeft, ChevronRight, TriangleAlert } from "lucide-r
 import { useAllTasks } from "../hooks/useAllTasks";
 import { useGoogleCalendar } from "../hooks/useGoogleCalendar";
 import { usePersistedState } from "../hooks/usePersistedState";
+import { useReflection } from "../hooks/useReflection";
 import { FilterPanel } from "../components/shared/FilterPanel";
 import { sectionColorMap } from "../utils/sectionColors";
 import { TaskDetailHost } from "../components/shared/TaskDetailHost";
+import { ReflectionPrompt } from "../components/reflect/ReflectionPrompt";
+import { api } from "../api/client";
 import { MonthGrid } from "../components/calendar/MonthGrid";
 import { DayDetail } from "../components/calendar/DayDetail";
 import { dayKey, eventDayKeys, taskDayKey } from "../utils/calendar";
@@ -31,6 +34,7 @@ export function CalendarView() {
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
   const [selectedDay, setSelectedDay] = useState<Date | null>(() => new Date());
   const [openTaskId, setOpenTaskId] = useState<number | null>(null);
+  const reflection = useReflection();
 
   const [hiddenSectionIds, setHiddenSectionIds] = usePersistedState<number[]>(
     "calendar.hiddenSections",
@@ -228,6 +232,17 @@ export function CalendarView() {
           onClose={() => setOpenTaskId(null)}
           onChanged={replaceTask}
           onDeleted={removeTask}
+          onSaved={reflection.maybeAsk}
+        />
+      )}
+
+      {reflection.pending && (
+        <ReflectionPrompt
+          task={reflection.pending}
+          onDismiss={reflection.dismiss}
+          onSave={async (values) => {
+            replaceTask(await api.updateTask(reflection.pending!.id, values));
+          }}
         />
       )}
     </div>

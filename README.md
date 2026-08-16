@@ -67,6 +67,21 @@ dashboard fetches sections from `http://localhost:8000` on load.
   entirely optional.
 - **Analytics tab**: completion rate, overdue count, priority/status
   breakdowns, and a completed-per-day trend, filterable by section.
+- **Reflections**: the moment a task lands in Done — dragged there, or switched
+  with the status buttons in its detail modal — you get asked how it felt (a
+  1-5 scale) and what you learned or got out of it. Both are optional and the
+  prompt is always skippable; the task is already saved as done before it
+  appears. What you write shows on the done card in your own words, and stays
+  editable from the detail modal afterwards.
+- **Looking back**: at the bottom of the Analytics tab, a week/month/year
+  review. The list of what you finished — with each task's rating and note — is
+  always there and costs nothing. Press the button and an LLM reads it back to
+  you: what you did, the threads running through it, and one thing to carry
+  forward. Those reflections are what make it worth reading; fed titles alone
+  it can only write a status report. Capped at 10 a day (server-side, resets
+  midnight UTC), cached per window so revisiting is free, and re-offered only
+  once more has actually been finished since. Shares the OpenRouter key with
+  the Grow orb — `DEPLOY.md` §9 — and is entirely optional.
 - **Grow orb**: the floating circle in the bottom-right, on every tab. Click
   it and an LLM hands you one grown-up thing worth understanding — how a car
   engine breathes, what an index fund really is, what your payslip's tax code

@@ -45,8 +45,12 @@ export function useTasks(sectionId: number | null) {
   // round trip before the card visibly moves. Covers both a same-group
   // status change AND a drag into a different group, since both just mean
   // "this task's status and/or subsection_id are now different."
+  //
+  // Returns the server's version of the task, or null if the move failed —
+  // the board needs it to tell a real transition into Done from a no-op, and
+  // must not raise the reflection prompt on a move that got rolled back.
   const moveTask = useCallback(
-    async (taskId: number, changes: MoveTaskChanges) => {
+    async (taskId: number, changes: MoveTaskChanges): Promise<Task | null> => {
       const previous = tasks;
       setTasks((current) =>
         current.map((t) => (t.id === taskId ? { ...t, ...changes } : t))
@@ -58,9 +62,11 @@ export function useTasks(sectionId: number | null) {
         // staying stuck on whatever this task had before the drag.
         const updated = await api.updateTask(taskId, changes);
         setTasks((current) => current.map((t) => (t.id === taskId ? updated : t)));
+        return updated;
       } catch (err) {
         setTasks(previous); // rollback
         setError(err instanceof Error ? err.message : "Failed to move task");
+        return null;
       }
     },
     [tasks]

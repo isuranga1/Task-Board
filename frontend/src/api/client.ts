@@ -14,6 +14,8 @@ import type {
   GoogleEvent,
   GrowthStatus,
   GrowthTip,
+  PeriodReview,
+  ReviewPeriod,
 } from "../types";
 
 export const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
@@ -202,4 +204,19 @@ export const api = {
   generateGrowthTip: () => request<GrowthTip>("/growth/tip", { method: "POST" }),
 
   listGrowthTips: (limit = 20) => request<GrowthTip[]>(`/growth/tips?limit=${limit}`),
+
+  // ---------- Look back (week/month/year review) ----------
+  // `ref` is any date inside the window; the server normalises it to the
+  // containing Monday / 1st / Jan 1. Omitted means "the one we're in now".
+
+  // Free — reads back what you finished, and the review if one's been written.
+  getPeriodReview: (period: ReviewPeriod, ref?: string) =>
+    request<PeriodReview>(`/summaries/${period}${ref ? `?ref=${ref}` : ""}`),
+
+  // Costs one of the day's summaries. As with the Grow orb, the server is what
+  // enforces that ceiling — this client only reports it.
+  generatePeriodReview: (period: ReviewPeriod, ref?: string) =>
+    request<PeriodReview>(`/summaries/${period}${ref ? `?ref=${ref}` : ""}`, {
+      method: "POST",
+    }),
 };

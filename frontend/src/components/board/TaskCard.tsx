@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { format } from "date-fns";
-import { Link2, FileText, Puzzle, Paperclip, Lock, Clock } from "lucide-react";
+import { Link2, FileText, Puzzle, Paperclip, Lock, Clock, Sparkle } from "lucide-react";
 import type { Task, TaskPriority } from "../../types";
 import {
   cardMotionClass,
@@ -80,6 +80,34 @@ function TimeBadge({ task }: { task: Task }) {
     );
   }
   return null;
+}
+
+// What the person wrote when they finished it. Only ever on a done card, and
+// deliberately quoted rather than styled as another metadata badge — it's the
+// one thing on the card that's in their own words, and the column of finished
+// work reads much better as a list of takeaways than as a list of titles.
+function ReflectionNote({ task }: { task: Task }) {
+  const note = task.reflection?.trim();
+  if (!note && task.satisfaction === null) return null;
+
+  return (
+    <div className="mt-2.5 border-t border-white/10 pt-2">
+      {note && (
+        <p className="text-xs italic leading-relaxed text-zinc-400 line-clamp-3">
+          “{note}”
+        </p>
+      )}
+      {task.satisfaction !== null && (
+        <div
+          className={`flex items-center gap-1 ${note ? "mt-1.5" : ""}`}
+          title={`Felt like a ${task.satisfaction} out of 5`}
+        >
+          <Sparkle size={10} className="text-amber-300/80" />
+          <span className="text-[11px] text-zinc-500">{task.satisfaction}/5</span>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function DueBadge({ task }: { task: Task }) {
@@ -210,6 +238,7 @@ function CardBody({
       )}
 
       <TimeBadge task={task} />
+      <ReflectionNote task={task} />
     </>
   );
 }

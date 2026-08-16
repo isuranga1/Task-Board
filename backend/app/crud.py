@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import select, func
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from . import models, schemas
 
@@ -203,11 +203,58 @@ def update_task(
         else:
             update_data["completed_at"] = None
 
+    # Reflection: writing either half of it stamps `reflected_at`, and clearing
+    # both back to empty clears the stamp, so "has this been reflected on" is
+    # answerable from one column. Note what is NOT here — dragging a task back
+    # out of Done leaves the reflection alone. What you learned from something
+    # doesn't stop being true because the task reopened, and silently deleting
+    # a paragraph someone wrote would be the worse of the two mistakes.
+    if "reflection" in update_data or "satisfaction" in update_data:
+        reflection = update_data.get("reflection", db_task.reflection)
+        satisfaction = update_data.get("satisfaction", db_task.satisfaction)
+        has_reflection = bool((reflection or "").strip()) or satisfaction is not None
+        update_data["reflected_at"] = (
+            datetime.now(timezone.utc) if has_reflection else None
+        )
+
     for key, value in update_data.items():
         setattr(db_task, key, value)
     db.commit()
     db.refresh(db_task)
     return db_task
+
+
+def get_completed_tasks_between(
+    db: Session, start: date, end: date
+) -> list[models.Task]:
+    """Tasks finished inside [start, end] inclusive, oldest first.
+
+    Filtered on `completed_at`, deliberately not on `updated_at` the way the
+    analytics trend is: fixing a typo in a done task's notes months later must
+    not drag it into this week's review, and a review that quietly changed its
+    own contents every time you touched an old card would be worthless.
+
+    The bounds are turned into a half-open UTC timestamp range rather than
+    casting each row's timestamptz to a date — same reasoning as growth_tips'
+    `created_on`, and it keeps the comparison index-friendly.
+    """
+    start_dt = datetime(start.year, start.month, start.day, tzinfo=timezone.utc)
+    end_dt = (
+        datetime(end.year, end.month, end.day, tzinfo=timezone.utc)
+        + timedelta(days=1)
+    )
+    stmt = (
+        select(models.Task)
+        .where(
+            models.Task.status == models.TaskStatus.done,
+            models.Task.completed_at.is_not(None),
+            models.Task.completed_at >= start_dt,
+            models.Task.completed_at < end_dt,
+        )
+        .options(selectinload(models.Task.section))
+        .order_by(models.Task.completed_at)
+    )
+    return db.execute(stmt).scalars().all()
 
 
 def delete_task(db: Session, task_id: int) -> bool:
@@ -464,3 +511,68 @@ def create_growth_tip(
     db.commit()
     db.refresh(tip)
     return tip
+
+
+# ---------- Period summaries (the week/month/year look-back) ----------
+#
+# Same UTC-day quota accounting as growth tips above, on its own counter.
+
+def count_period_summaries_today(db: Session) -> int:
+    stmt = select(func.count()).select_from(models.PeriodSummary).where(
+        models.PeriodSummary.created_on == utc_today()
+    )
+    return db.execute(stmt).scalar() or 0
+
+
+def get_latest_period_summary(
+    db: Session, period: str, period_start: date
+) -> models.PeriodSummary | None:
+    """The most recently written summary for exactly this window, if any.
+
+    Newest-first rather than "the" row because regenerating inserts instead of
+    updating (see models.PeriodSummary) — the latest attempt is the one the
+    page shows, and the earlier ones stay on disk.
+    """
+    stmt = (
+        select(models.PeriodSummary)
+        .where(
+            models.PeriodSummary.period == period,
+            models.PeriodSummary.period_start == period_start,
+        )
+        .order_by(models.PeriodSummary.id.desc())
+        .limit(1)
+    )
+    return db.execute(stmt).scalars().first()
+
+
+def create_period_summary(
+    db: Session,
+    *,
+    period: str,
+    period_start: date,
+    period_end: date,
+    label: str,
+    headline: str,
+    narrative: str,
+    themes: list[str],
+    advice: str | None,
+    task_count: int,
+    model: str | None,
+) -> models.PeriodSummary:
+    summary = models.PeriodSummary(
+        period=period,
+        period_start=period_start,
+        period_end=period_end,
+        label=label,
+        headline=headline,
+        narrative=narrative,
+        themes=themes,
+        advice=advice,
+        task_count=task_count,
+        model=model,
+        created_on=utc_today(),
+    )
+    db.add(summary)
+    db.commit()
+    db.refresh(summary)
+    return summary

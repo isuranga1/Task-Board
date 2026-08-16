@@ -95,6 +95,30 @@ via `UPLOADS_DIR` in `.env`), served back through a static mount at `/uploads/..
 Only the filename/size/type metadata lives in Postgres's `task_metadata` JSONB
 column — the file bytes themselves never touch the database.
 
+## Reflections and the look-back
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/summaries/{period}?ref=` (optional) | what you finished in a week/month/year, plus the written review if there is one — **free** |
+| POST | `/summaries/{period}?ref=` (optional) | write (or rewrite) that review — costs one of the day's generations |
+
+`{period}` is `week`, `month` or `year`; anything else is a 404. `ref` is any
+date inside the window and defaults to today — the server normalises it to the
+containing Monday / 1st / Jan 1, which is what makes a summary cacheable rather
+than one-per-day-you-happened-to-ask.
+
+**Reflections** live on the task itself (`satisfaction` 1-5, `reflection` text),
+set through the ordinary `PATCH /tasks/{id}`. `reflected_at` is server-computed,
+exactly like `started_at`/`completed_at`: writing either field stamps it,
+clearing both clears it. Moving a task *out* of done deliberately leaves the
+reflection alone — what you learned doesn't stop being true because the task
+reopened.
+
+The POST is the only endpoint here that spends money. It refuses with **400**
+before making any API call if nothing was completed in the window, **429** once
+the day's `SUMMARY_DAILY_LIMIT` is used up, and **502** if OpenRouter itself
+fails. A failed call writes no row, so it costs no quota.
+
 ## Email reminders — requires SMTP configuration
 
 Add these to your `.env` to enable them (all optional — if left blank, the

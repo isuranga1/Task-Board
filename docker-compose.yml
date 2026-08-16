@@ -40,11 +40,15 @@ services:
       # origin. Falls back to CORS_ORIGINS' intent by defaulting to the same
       # host you serve the UI from; set it explicitly in .env.
       FRONTEND_URL: ${FRONTEND_URL:-}
-      # Grow orb. Blank key = the orb shows a "not configured" note and costs
+      # The two LLM features — the Grow orb and the week/month/year look-back —
+      # share one key. Blank = both show a "not configured" note and cost
       # nothing; the rest of the app is unaffected.
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openai/gpt-4o-mini}
       GROWTH_DAILY_LIMIT: ${GROWTH_DAILY_LIMIT:-25}
+      # Separate counter from the orb's, so a busy day of Grow clicks can't
+      # leave you unable to write a weekly review.
+      SUMMARY_DAILY_LIMIT: ${SUMMARY_DAILY_LIMIT:-10}
     volumes:
       - uploads:/app/uploads
     ports:

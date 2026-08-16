@@ -2,8 +2,11 @@ import { useState, useMemo } from "react";
 import { CalendarClock, TriangleAlert } from "lucide-react";
 import { useAllTasks } from "../hooks/useAllTasks";
 import { usePersistedState } from "../hooks/usePersistedState";
+import { useReflection } from "../hooks/useReflection";
 import { FilterPanel } from "../components/shared/FilterPanel";
 import { TaskDetailHost } from "../components/shared/TaskDetailHost";
+import { ReflectionPrompt } from "../components/reflect/ReflectionPrompt";
+import { api } from "../api/client";
 import { DeadlineRow } from "../components/deadlines/DeadlineRow";
 import { groupByDeadline, countOverdue } from "../utils/deadlines";
 import { sectionColorMap } from "../utils/sectionColors";
@@ -25,6 +28,7 @@ export function Deadlines() {
     false
   );
   const [openTaskId, setOpenTaskId] = useState<number | null>(null);
+  const reflection = useReflection();
 
   const hidden = useMemo(() => new Set(hiddenSectionIds), [hiddenSectionIds]);
   const visibleSectionIds = sections.filter((s) => !hidden.has(s.id)).map((s) => s.id);
@@ -157,6 +161,17 @@ export function Deadlines() {
           onClose={() => setOpenTaskId(null)}
           onChanged={replaceTask}
           onDeleted={removeTask}
+          onSaved={reflection.maybeAsk}
+        />
+      )}
+
+      {reflection.pending && (
+        <ReflectionPrompt
+          task={reflection.pending}
+          onDismiss={reflection.dismiss}
+          onSave={async (values) => {
+            replaceTask(await api.updateTask(reflection.pending!.id, values));
+          }}
         />
       )}
     </div>

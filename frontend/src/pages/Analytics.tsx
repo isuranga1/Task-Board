@@ -12,6 +12,7 @@ import {
   CartesianGrid,
 } from "recharts";
 import { api } from "../api/client";
+import { LookBack } from "../components/review/LookBack";
 import type { AnalyticsSummary, Section } from "../types";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -172,7 +173,7 @@ export function Analytics() {
       </div>
 
       {/* ---------- Completion trend ---------- */}
-      <div className="glass rounded-2xl p-4">
+      <div className="glass mb-6 rounded-2xl p-4">
         <h2 className="text-sm font-semibold text-zinc-200 mb-4">
           Finished tasks over time <span className="text-zinc-500 font-normal">(by last-updated date)</span>
         </h2>
@@ -190,6 +191,9 @@ export function Analytics() {
           </ResponsiveContainer>
         )}
       </div>
+
+      {/* Numbers, then the narrative behind them. */}
+      <LookBack />
     </div>
   );
 }

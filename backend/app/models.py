@@ -10,6 +10,7 @@ from sqlalchemy import (
     ForeignKey,
     Enum,
     Boolean,
+    Index,
     Table,
     UniqueConstraint,
     func,
@@ -103,6 +104,19 @@ class Task(Base):
     # straight from todo to done was never actively timed.
     started_at = Column(DateTime(timezone=True), nullable=True)
     completed_at = Column(DateTime(timezone=True), nullable=True)
+    # What you got out of finishing it, captured by the prompt that appears the
+    # moment a task reaches "done". All three are nullable and stay that way if
+    # the prompt is skipped — a task is allowed to just be finished.
+    #
+    # These live on the task rather than in a separate `reflections` table
+    # because there is exactly one per task and it is read every single time the
+    # card is: a join to show a sentence on a card isn't worth the row.
+    satisfaction = Column(Integer, nullable=True)   # 1-5, how finishing it felt
+    reflection = Column(Text, nullable=True)        # what was learned or gained
+    # Distinct from completed_at: you can finish something on Monday and write
+    # down what it taught you on Friday, and "reflected on" is the question the
+    # weekly review actually asks. Cleared if the reflection is emptied again.
+    reflected_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -194,6 +208,55 @@ class GrowthTip(Base):
     # this count against" can never drift from how the count is computed.
     created_on = Column(Date, nullable=False, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class PeriodSummary(Base):
+    """One LLM-written look back over a week, month, or year of finished work.
+
+    Written from the titles of the tasks completed in that window plus whatever
+    was recorded in each one's `reflection` — which is the whole reason the
+    prompt on the Done column exists. A list of task titles alone produces a
+    summary that reads like a status report; the reflections are what make it
+    worth reading.
+
+    Rows are only ever inserted, never updated, for two reasons that mirror
+    growth_tips:
+
+    1. It IS the daily quota counter (see summaries.py). Counting rows is the
+       only tally that survives the backend restarting on every deploy.
+    2. Regenerating a period keeps the older attempt instead of destroying it.
+       The newest row for a (period, period_start) pair is the one shown, so
+       "write me a better one" costs a request but never loses the first.
+
+    `task_count` is stored alongside so the UI can tell that more work has been
+    finished since the summary was written, and offer to refresh it.
+    """
+
+    __tablename__ = "period_summaries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    period = Column(String, nullable=False)        # "week" | "month" | "year"
+    # The canonical first day of the window (Monday / the 1st / Jan 1), NOT the
+    # date that happened to be asked about. Storing the normalised bound is what
+    # lets any day within a week find the summary already written for it.
+    period_start = Column(Date, nullable=False)
+    period_end = Column(Date, nullable=False)
+    label = Column(String, nullable=False)         # "Week of 10 Aug 2026", "August 2026"
+
+    headline = Column(String, nullable=False)      # one line naming the period
+    narrative = Column(Text, nullable=False)       # the body of the look-back
+    themes = Column(JSONB, default=list, nullable=False)   # list[str], the threads it noticed
+    advice = Column(Text, nullable=True)           # one thing to carry forward
+
+    task_count = Column(Integer, nullable=False, server_default="0")
+    model = Column(String, nullable=True)          # which OpenRouter model wrote it
+    created_on = Column(Date, nullable=False, index=True)  # UTC date, for the quota count
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        # Every read is "the newest summary for this exact window".
+        Index("ix_period_summaries_window", "period", "period_start"),
+    )
 
 
 class Subtask(Base):

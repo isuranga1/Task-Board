@@ -59,6 +59,12 @@ export interface Task {
   reminder_sent: boolean;
   started_at: string | null; // set when the task most recently entered "in_progress"
   completed_at: string | null; // set when the task most recently reached "done"
+  /** 1-5, how finishing it felt. Null if the reflection prompt was skipped. */
+  satisfaction: number | null;
+  /** What you learned or got out of it. Null if the prompt was skipped. */
+  reflection: string | null;
+  /** Server-stamped when a reflection is written; cleared when one is emptied. */
+  reflected_at: string | null;
   created_at: string;
   updated_at: string;
   task_metadata: TaskMetadata;
@@ -97,6 +103,8 @@ export interface TaskCreatePayload {
   remind_at?: string | null;
   subsection_id?: number | null;
   task_metadata?: Partial<TaskMetadata>;
+  satisfaction?: number | null;
+  reflection?: string | null;
 }
 
 // All optional, mirroring TaskUpdate on the backend — a drag-and-drop status
@@ -185,6 +193,55 @@ export interface GrowthStatus {
   remaining: number;
   /** The last tip generated, so opening the orb doesn't have to spend one. */
   latest: GrowthTip | null;
+}
+
+// ---------- Look back (the week/month/year review) ----------
+
+export type ReviewPeriod = "week" | "month" | "year";
+
+/** One finished task as the review lists it — a recap row, not a full Task. */
+export interface CompletedTaskBrief {
+  id: number;
+  title: string;
+  section_name: string;
+  completed_at: string | null;
+  satisfaction: number | null;
+  reflection: string | null;
+}
+
+export interface PeriodSummary {
+  id: number;
+  period: ReviewPeriod;
+  period_start: string;
+  period_end: string;
+  /** "Week of 10 Aug 2026", "August 2026", "2026". */
+  label: string;
+  headline: string;
+  /** Paragraphs separated by blank lines. */
+  narrative: string;
+  themes: string[];
+  advice: string | null;
+  /** How many completed tasks it was written from — see `stale` below. */
+  task_count: number;
+  created_at: string;
+}
+
+export interface PeriodReview {
+  period: ReviewPeriod;
+  period_start: string;
+  period_end: string;
+  label: string;
+  completed: CompletedTaskBrief[];
+  /** How many of `completed` carry a reflection. */
+  reflected_count: number;
+  summary: PeriodSummary | null;
+  /** A summary exists, but more has been finished since it was written. */
+  stale: boolean;
+  /** Server has an OpenRouter key. False = nothing the UI can do about it. */
+  configured: boolean;
+  used_today: number;
+  daily_limit: number;
+  remaining: number;
 }
 
 export interface AnalyticsSummary {

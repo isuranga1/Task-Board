@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { format } from "date-fns";
 import { X, Plus, Trash2, Paperclip, Upload, Link as LinkIcon } from "lucide-react";
 import type {
   Task,
@@ -11,6 +12,7 @@ import type {
 import { DatePicker } from "../shared/DatePicker";
 import { LinkRow } from "./LinkRow";
 import { EmbedPreview } from "./EmbedPreview";
+import { SATISFACTION } from "../reflect/satisfaction";
 import { extractUrls } from "../../utils/extractUrls";
 import { BASE_URL } from "../../api/client";
 import { strikeMotionClass } from "../../animations";
@@ -91,6 +93,10 @@ export function TaskDetailModal({
   const [subsectionId, setSubsectionId] = useState<number | null>(task.subsection_id);
   const [links, setLinks] = useState<Link[]>(task.task_metadata.links ?? []);
   const [tagsInput, setTagsInput] = useState((task.task_metadata.tags ?? []).join(", "));
+  // Normally captured by the prompt that fires on completion, but editable
+  // here too — a takeaway often only becomes clear a few days later.
+  const [satisfaction, setSatisfaction] = useState<number | null>(task.satisfaction);
+  const [reflection, setReflection] = useState(task.reflection ?? "");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -138,6 +144,8 @@ export function TaskDetailModal({
         status,
         ticket_code: ticketCode.trim() === "" ? null : ticketCode,
         subsection_id: subsectionId,
+        satisfaction,
+        reflection: reflection.trim() === "" ? null : reflection.trim(),
         task_metadata: { ...task.task_metadata, links: cleanLinks, tags },
       });
       onClose();
@@ -359,6 +367,56 @@ export function TaskDetailModal({
             </div>
           )}
         </div>
+
+        {/* ---------- What you got out of it ----------
+            Shown once a task is done, or whenever something has already been
+            written — so it isn't in the way while the work is still live, but
+            an old reflection is never hidden just because the card got
+            dragged back out of Done. */}
+        {(status === "done" || task.reflection || task.satisfaction !== null) && (
+          <div className="mb-4 rounded-2xl border border-emerald-400/15 bg-emerald-400/5 p-3">
+            <label className="mb-2 block text-xs text-emerald-300/90">
+              What you got out of it{" "}
+              <span className="text-zinc-500">— feeds your weekly look-back</span>
+            </label>
+
+            <div className="mb-2.5 flex gap-1.5">
+              {SATISFACTION.map((s) => {
+                const picked = satisfaction === s.value;
+                return (
+                  <button
+                    key={s.value}
+                    type="button"
+                    onClick={() => setSatisfaction(picked ? null : s.value)}
+                    aria-pressed={picked}
+                    title={s.label}
+                    className={`flex flex-1 flex-col items-center gap-0.5 rounded-lg px-1 py-1.5 transition-colors ${
+                      picked
+                        ? "bg-white/15 text-white ring-1 ring-white/25"
+                        : "bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200"
+                    }`}
+                  >
+                    <span className="text-base leading-none">{s.emoji}</span>
+                    <span className="text-[10px] font-medium">{s.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <textarea
+              value={reflection}
+              onChange={(e) => setReflection(e.target.value)}
+              rows={3}
+              placeholder="What did you learn, or get out of it?"
+              className={`${fieldClass} resize-none`}
+            />
+            {task.reflected_at && (
+              <p className="mt-1 text-[10px] text-zinc-500">
+                Reflected on {format(new Date(task.reflected_at), "d MMM yyyy")}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* ---------- Checklist ---------- */}
         <div className="mb-4">

@@ -11,6 +11,12 @@ interface TaskDetailHostProps {
   /** Called with the server's updated task after any successful mutation. */
   onChanged: (task: Task) => void;
   onDeleted: (taskId: number) => void;
+  /**
+   * The task before and after a save, so the page can raise the reflection
+   * prompt if that save is what finished it. Only fired for field saves —
+   * uploading a file or adding a dependency can't change status.
+   */
+  onSaved?: (before: Task, after: Task) => void;
 }
 
 /**
@@ -29,6 +35,7 @@ export function TaskDetailHost({
   onClose,
   onChanged,
   onDeleted,
+  onSaved,
 }: TaskDetailHostProps) {
   const section = sections.find((s) => s.id === task.section_id);
 
@@ -49,7 +56,11 @@ export function TaskDetailHost({
       subsections={section?.subsections ?? []}
       sectionTasks={sectionTasks}
       onClose={onClose}
-      onSave={async (payload) => onChanged(await api.updateTask(task.id, payload))}
+      onSave={async (payload) => {
+        const updated = await api.updateTask(task.id, payload);
+        onChanged(updated);
+        onSaved?.(task, updated);
+      }}
       onDelete={async () => {
         await api.deleteTask(task.id);
         onDeleted(task.id);

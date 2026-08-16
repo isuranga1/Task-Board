@@ -354,13 +354,23 @@ connection survives container rebuilds and is picked up by `scripts/backup-db.sh
 along with everything else. **Disconnect** (the unlink icon) deletes them and
 revokes the grant with Google.
 
-## 9. The Grow orb (optional)
+## 9. The LLM features (optional)
 
-The floating circle in the bottom-right corner asks an LLM for one grown-up
-thing worth understanding — how an engine breathes, what an index fund
-actually is, why bread needs salt — plus something concrete to go and try.
-It's off unless you give it a key, and the rest of the app doesn't care
-either way.
+Two things here talk to a language model, and they share one OpenRouter key:
+
+- **The Grow orb** — the floating circle in the bottom-right corner, which asks
+  for one grown-up thing worth understanding (how an engine breathes, what an
+  index fund actually is, why bread needs salt) plus something concrete to go
+  and try.
+- **The look-back** — at the bottom of the Insights tab, a written review of
+  your week, month or year, built from the tasks you finished and the note you
+  wrote on each one when you finished it.
+
+Both are off unless you give it a key, and the rest of the app doesn't care
+either way. Note that the *reflection prompt itself* — the "how did that feel,
+what did you get out of it" box that appears when a task reaches Done — needs
+no key and always works; it's a plain database write. The key is only needed to
+have those reflections read back to you as a summary.
 
 ### 9.1 Get a key
 
@@ -368,7 +378,7 @@ either way.
    (a few dollars lasts a very long time at this volume).
 2. Create a key at **openrouter.ai/keys**.
 3. **Set a spend limit on the key itself while you're there.** The app's
-   25/day cap is a safety net, not a billing control — the limit on the key
+   per-day caps are a safety net, not a billing control — the limit on the key
    is what actually cannot be exceeded.
 
 ### 9.2 Configure
@@ -379,6 +389,7 @@ Add to the root `.env` on the Pi:
 OPENROUTER_API_KEY=<the key you just created>
 OPENROUTER_MODEL=openai/gpt-4o-mini
 GROWTH_DAILY_LIMIT=25
+SUMMARY_DAILY_LIMIT=10
 ```
 
 Then recreate the backend — env vars are read at startup, and no image
@@ -390,23 +401,40 @@ docker compose up -d backend
 
 Treat that key like a password: it belongs only in `.env` (already
 gitignored) and in OpenRouter's dashboard. It's never written to the
-database, never logged, and `/growth/status` reports only whether one is
-present — never its value.
+database, never logged, and `/growth/status` and `/summaries/{period}` report
+only whether one is present — never its value.
 
-### 9.3 How the daily limit works
+### 9.3 How the daily limits work
 
-Every generated tip is a row in the `growth_tips` table, stamped with the UTC
-date it was made. The cap is a count of today's rows, so it survives backend
-restarts (which happen on every deploy) and applies across all your devices
-at once — not 25 per browser.
+Both features work the same way, on **separate counters** — so a busy day of
+Grow clicks can't leave you unable to write a weekly review.
 
-Requests that *fail* don't count: the row is only written once a tip actually
-comes back, so a network blip doesn't eat your budget. The counter resets at
-midnight UTC. To change the ceiling, edit `GROWTH_DAILY_LIMIT` and re-run the
+| Feature   | Table              | Env var                | Default |
+| --------- | ------------------ | ---------------------- | ------- |
+| Grow orb  | `growth_tips`      | `GROWTH_DAILY_LIMIT`   | 25/day  |
+| Look-back | `period_summaries` | `SUMMARY_DAILY_LIMIT`  | 10/day  |
+
+Every generation is a row in its table, stamped with the UTC date it was made,
+and the cap is a count of today's rows. That means it survives backend restarts
+(which happen on every deploy) and applies across all your devices at once —
+not 25 per browser.
+
+Requests that *fail* don't count: the row is only written once a reply actually
+comes back, so a network blip doesn't eat your budget. A look-back over a period
+where you finished nothing is refused before any API call at all. The counters
+reset at midnight UTC. To change a ceiling, edit the env var and re-run the
 `docker compose up -d backend` above.
 
-Reading past tips (the history button in the panel) is free — it's a database
-read, no API call.
+Reading is always free — no API call is involved in the orb's history button,
+in the list of what you finished in a period, or in re-opening a look-back that
+has already been written. A summary is cached against its window (the Monday of
+that week, the 1st of that month, Jan 1 of that year), so every day of the same
+week finds the same one. The button only re-offers a rewrite once more work has
+actually been finished since it was written.
+
+The look-back is capped at the 120 most recent completed tasks in a window, so
+a heavy year can't turn into an enormous prompt; the model is told the real
+total so it never implies the sample was everything.
 
 ### 9.4 Changing the model
 
@@ -416,6 +444,10 @@ a "reply with JSON" instruction works; the code copes with models that wrap
 their JSON in a code fence. If you want it to cost nothing at all, the
 `:free` variants work too, at some cost in how interesting the suggestions
 are.
+
+One slug drives both features. The look-back sends a bigger prompt and asks for
+more back, so if you pick a very small model, that's the one that will show it
+first — a thin, generic review is usually the model, not your week.
 
 ## 10. Troubleshooting
 

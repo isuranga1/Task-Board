@@ -2,9 +2,11 @@ import { useState, useEffect, useCallback } from "react";
 import { Plus } from "lucide-react";
 import { api } from "../api/client";
 import { useTasks } from "../hooks/useTasks";
+import { useReflection } from "../hooks/useReflection";
 import { SectionTabs, slugify } from "../components/sections/SectionTabs";
 import { SectionBoard } from "../components/sections/SectionBoard";
 import { TaskDetailModal } from "../components/board/TaskDetailModal";
+import { ReflectionPrompt } from "../components/reflect/ReflectionPrompt";
 import type { Section, Subsection, Task } from "../types";
 
 export function Dashboard() {
@@ -33,6 +35,10 @@ export function Dashboard() {
     addDependency,
     removeDependency,
   } = useTasks(activeSectionId);
+
+  // Asks what you got out of a task the moment it lands in Done — whether it
+  // was dragged there or switched with the status buttons in the modal.
+  const reflection = useReflection();
 
   // Look the open task up fresh from `tasks` each render, rather than storing
   // the whole Task object in state — this way if a subtask gets toggled while
@@ -267,7 +273,13 @@ export function Dashboard() {
           <SectionBoard
             section={activeSection}
             tasksBySubsection={tasksBySubsection}
-            onMoveTask={moveTask}
+            onMoveTask={async (taskId, changes) => {
+              const before = tasks.find((t) => t.id === taskId);
+              const after = await moveTask(taskId, changes);
+              // Null means the PATCH failed and the card rolled back — no
+              // prompt for a completion that didn't actually happen.
+              if (after) reflection.maybeAsk(before, after);
+            }}
             onToggleSubtask={toggleSubtask}
             onAddTask={(subId, title) => createTask(title, subId)}
             onOpenTask={(task) => setOpenTaskId(task.id)}
@@ -285,7 +297,11 @@ export function Dashboard() {
           sectionTasks={tasks}
           onClose={() => setOpenTaskId(null)}
           onSave={async (payload) => {
-            await updateTask(openTask.id, payload);
+            const updated = await updateTask(openTask.id, payload);
+            // The status buttons in the modal are the only way to finish a
+            // task on a phone, where dragging isn't available — so the same
+            // prompt has to follow a save, not just a drag.
+            reflection.maybeAsk(openTask, updated);
           }}
           onDelete={async () => {
             await deleteTask(openTask.id);
@@ -306,6 +322,18 @@ export function Dashboard() {
             toggleSubtask(openTask.id, subtaskId, isDone)
           }
           onDeleteSubtask={(subtaskId) => deleteSubtask(openTask.id, subtaskId)}
+        />
+      )}
+
+      {/* Rendered last so it stacks above the detail modal — finishing a task
+          from inside that modal has to leave this prompt on top of it. */}
+      {reflection.pending && (
+        <ReflectionPrompt
+          task={reflection.pending}
+          onDismiss={reflection.dismiss}
+          onSave={async (values) => {
+            await updateTask(reflection.pending!.id, values);
+          }}
         />
       )}
     </div>
