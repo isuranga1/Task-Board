@@ -1,0 +1,149 @@
+/* ============================================================================
+   Ambient background — the slow drifting color behind everything.
+
+   Five soft blobs on long, prime-ish, out-of-phase loops. Nothing here is
+   random at runtime: the durations (23s, 31s, 37s, 43s, 29s) simply don't
+   share a common multiple you'd ever sit still long enough to notice, which
+   reads as organic without a single timer or re-render. It is pure CSS on a
+   component that renders once and never updates.
+
+   Deliberately no `filter: blur()`. A blurred 40rem element is one of the most
+   expensive things you can ask a phone GPU to composite every frame; a radial
+   gradient with a soft stop is already fuzzy and costs nothing. Animating only
+   `transform` keeps all five on the compositor with no layout or paint.
+   ========================================================================== */
+
+.ambient-root {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  /* The blobs are drawn in theme colors at theme opacity; this keeps a light
+     theme's wash from ever getting muddy enough to hurt text contrast. */
+  opacity: var(--ambient-alpha, 0.35);
+}
+
+.ambient-blob {
+  position: absolute;
+  border-radius: 50%;
+  will-change: transform;
+  /* `at 35% 35%` rather than dead centre: an off-centre core makes each blob
+     read as a lit shape rather than a symmetrical dot. */
+  background: radial-gradient(circle at 35% 35%, var(--blob), transparent 68%);
+}
+
+/* Sizes are in vmax so the composition holds its proportions from a 375px
+   phone to an ultrawide monitor, instead of five dots lost in a corner. */
+.ambient-blob-1 {
+  --blob: var(--ambient-1);
+  width: 62vmax;
+  height: 62vmax;
+  top: -18vmax;
+  left: -14vmax;
+  animation: ambient-drift-a 23s ease-in-out infinite alternate;
+}
+.ambient-blob-2 {
+  --blob: var(--ambient-2);
+  width: 54vmax;
+  height: 54vmax;
+  top: -10vmax;
+  right: -16vmax;
+  animation: ambient-drift-b 31s ease-in-out infinite alternate;
+}
+.ambient-blob-3 {
+  --blob: var(--ambient-3);
+  width: 58vmax;
+  height: 58vmax;
+  bottom: -22vmax;
+  left: 4vmax;
+  animation: ambient-drift-c 37s ease-in-out infinite alternate;
+}
+.ambient-blob-4 {
+  --blob: var(--ambient-4);
+  width: 48vmax;
+  height: 48vmax;
+  bottom: -18vmax;
+  right: -10vmax;
+  animation: ambient-drift-d 43s ease-in-out infinite alternate;
+}
+.ambient-blob-5 {
+  --blob: var(--ambient-5);
+  width: 44vmax;
+  height: 44vmax;
+  top: 28%;
+  left: 32%;
+  animation: ambient-drift-e 29s ease-in-out infinite alternate;
+}
+
+@keyframes ambient-drift-a {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(9vmax, 6vmax, 0) scale(1.16);
+  }
+}
+@keyframes ambient-drift-b {
+  from {
+    transform: translate3d(0, 0, 0) scale(1.1);
+  }
+  to {
+    transform: translate3d(-11vmax, 8vmax, 0) scale(0.92);
+  }
+}
+@keyframes ambient-drift-c {
+  from {
+    transform: translate3d(0, 0, 0) scale(0.95);
+  }
+  to {
+    transform: translate3d(12vmax, -7vmax, 0) scale(1.14);
+  }
+}
+@keyframes ambient-drift-d {
+  from {
+    transform: translate3d(0, 0, 0) scale(1.08);
+  }
+  to {
+    transform: translate3d(-8vmax, -10vmax, 0) scale(0.94);
+  }
+}
+@keyframes ambient-drift-e {
+  from {
+    transform: translate3d(-6vmax, 4vmax, 0) scale(0.9);
+  }
+  to {
+    transform: translate3d(8vmax, -6vmax, 0) scale(1.2);
+  }
+}
+
+/* A whisper of film grain. Only the light themes turn this up (--ambient-grain),
+   where it stops a big flat expanse of cream reading as "unfinished page". The
+   SVG is inline so it costs no request, and it's a single tiled 120px tile.
+   `contrast()` on the turbulence is what turns smooth noise into visible speckle. */
+.ambient-grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: var(--ambient-grain, 0);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Fill rate is the cost here, and a phone has the least of it. Dropping the two
+   smallest blobs below sm removes ~30% of the overdraw and is invisible — at
+   that width they're mostly off-screen behind the other three anyway. */
+@media (max-width: 640px) {
+  .ambient-blob-4,
+  .ambient-blob-5 {
+    display: none;
+  }
+}
+
+/* Reduced motion parks every blob at its starting position. The composition is
+   designed to look right stationary — the drift is a bonus, not the point —
+   so this loses atmosphere, not legibility. */
+@media (prefers-reduced-motion: reduce) {
+  .ambient-blob {
+    animation: none !important;
+  }
+}

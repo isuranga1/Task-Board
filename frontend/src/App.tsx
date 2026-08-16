@@ -5,6 +5,8 @@ import { Analytics } from "./pages/Analytics";
 import { Deadlines } from "./pages/Deadlines";
 import { CalendarView } from "./pages/CalendarView";
 import { GrowthOrb } from "./components/growth/GrowthOrb";
+import { AmbientBackground } from "./components/theme/AmbientBackground";
+import { ThemeSwitcher } from "./components/theme/ThemeSwitcher";
 
 type View = "dashboard" | "deadlines" | "calendar" | "analytics";
 
@@ -71,6 +73,9 @@ function App() {
       className="min-h-dvh pt-[env(safe-area-inset-top)]
         pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]"
     >
+      {/* Fixed at z-index -1, so it sits behind everything and outside the
+          layout — position in the tree is irrelevant, but first reads best. */}
+      <AmbientBackground />
       {/* Two shapes, one list. On a phone the four labelled tabs simply don't
           fit across 375px as a centered pill, so they become a full-width bar
           pinned to the bottom — within thumb reach, and the same place iOS
@@ -123,8 +128,8 @@ function App() {
         {view === "analytics" && <Analytics />}
       </div>
 
-      {/* Outside the view switch: the orb is the one thing here that isn't
-          about the work, so it stays reachable from every tab. */}
+      {/* Both outside the view switch: neither belongs to any one tab. */}
+      <ThemeSwitcher />
       <GrowthOrb />
     </div>
   );

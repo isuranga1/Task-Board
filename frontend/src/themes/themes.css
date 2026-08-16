@@ -1,0 +1,293 @@
+/* ============================================================================
+   Themes — every color in the app, per theme, in one file.
+
+   HOW THIS WORKS, because it is not obvious and is the whole trick:
+
+   Tailwind 4 compiles a color utility to a CSS variable reference, not a literal.
+   `text-zinc-500` becomes `color: var(--color-zinc-500)`, `bg-white/5` becomes
+   `color-mix(in oklab, var(--color-white) 5%, transparent)`. So redefining
+   `--color-zinc-500` under a `[data-theme]` selector re-skins every one of the
+   ~80 places that utility is used, without editing a single component.
+
+   That is why the light themes below reassign the whole zinc ramp *backwards*
+   and swap `--color-white` for an ink color. The app was written consistently
+   "light text on dark" — zinc-100 brightest, zinc-600 faintest — so inverting
+   the ramp turns that into "dark text on light" everywhere at once, and the
+   component markup stays honest for both.
+
+   Specificity note: `[data-theme="x"]` and `:root` are both (0,1,0), so source
+   order decides. This file is imported after Tailwind in index.css, which is
+   what lets it win over `@theme`'s defaults. Don't move that import.
+
+   Adding a theme: copy a block, change the values, add an entry to ./index.ts,
+   and add the name to the `known` list in index.html's boot script.
+
+   Every theme MUST set the full semantic set (--font-display, --color-bg
+   through --ambient-*). Only the *light* ones carry the palette-inversion
+   section — a dark theme wants Tailwind's own zinc ramp untouched. There is
+   deliberately no `:root` block anywhere in this file: a variable set there
+   would apply under every theme, and any theme that didn't happen to restate
+   it would silently inherit another theme's value.
+   ========================================================================== */
+
+/* ---------------------------------------------------------------------------
+   CLAUDE — warm cream and clay. The default.
+
+   NOT also selected via `:root`. That is tempting — it makes the default paint
+   correctly with no attribute set — but `:root` matches <html> under EVERY
+   theme, and since the dark blocks below have no reason to restate Tailwind's
+   own palette, Claude's inverted (near-black) text would leak into Midnight and
+   Aurora and render them unreadable. The default is instead pinned by
+   `<html data-theme="claude">` in index.html, so a theme is always named
+   explicitly and each block only has to describe itself.
+   -------------------------------------------------------------------------- */
+[data-theme="claude"] {
+  color-scheme: light;
+  /* The warm editorial serif is most of what makes this theme feel
+     unlike a dashboard. The other themes stay on Inter throughout. */
+  --font-display: "Newsreader", Georgia, "Times New Roman", serif;
+
+  --color-bg: #f7f4ee;
+  --app-text: #2a2622;
+
+  /* Cards are white-on-cream rather than a tint of the background: it's what
+     gives this theme its paper-on-desk feel instead of looking washed out. */
+  --color-surface: rgba(255, 255, 255, 0.72);
+  --color-surface-hover: rgba(255, 255, 255, 0.92);
+  --color-border: rgba(72, 55, 42, 0.11);
+
+  --color-accent-todo: #5a67d8;
+  --color-accent-progress: #d97757; /* Anthropic's clay */
+  --color-accent-done: #2f9e6e;
+
+  --app-panel-bg: rgba(253, 251, 246, 0.93);
+  --app-panel-border: rgba(72, 55, 42, 0.14);
+  --app-glass-inset: rgba(255, 255, 255, 0.9);
+  --app-glass-shadow: rgba(90, 68, 48, 0.1);
+  --app-panel-shadow: rgba(90, 68, 48, 0.18);
+
+  /* Modals dim the page with this, NOT with `bg-black/50`. On a light theme
+     --color-black is swapped for a near-white ink, which would turn that
+     utility into a *pale* veil and leave the modal barely separated from the
+     page behind it. A scrim wants to be dark in every theme. */
+  --app-scrim: rgba(58, 43, 31, 0.42);
+
+  --app-select-bg: #fdfbf6;
+  --app-scrollbar: rgba(72, 55, 42, 0.2);
+  --app-scrollbar-hover: rgba(72, 55, 42, 0.34);
+
+  --app-theme-color: #f7f4ee; /* iOS status bar tint */
+
+  --ambient-1: #e9a17c;
+  --ambient-2: #d97757;
+  --ambient-3: #e3c26a;
+  --ambient-4: #8fb99a;
+  --ambient-5: #b3a5dd;
+  --ambient-alpha: 0.4;
+  --ambient-grain: 0.05;
+
+  /* ---- palette inversion (light themes only) ---- */
+  --color-white: #241f1b;
+  --color-black: #fffdf8;
+
+  --color-zinc-100: #211e1b;
+  --color-zinc-200: #2b2724;
+  --color-zinc-300: #3d3833;
+  --color-zinc-400: #5c544c;
+  --color-zinc-500: #726758;
+  --color-zinc-600: #857a6d;
+  --color-zinc-700: #bdb2a5;
+
+  --color-indigo-200: #4c55c7;
+  --color-indigo-300: #464fbe;
+  --color-indigo-400: #4348ae;
+  --color-rose-200: #b03a52;
+  --color-rose-300: #ab3149;
+  --color-rose-400: #9c2c42;
+  --color-rose-500: #8d2639;
+  --color-emerald-300: #1f7a5a;
+  --color-emerald-400: #1b6e51;
+  --color-emerald-500: #186247;
+  --color-sky-200: #1e6fa8;
+  --color-sky-300: #1b6699;
+  --color-sky-400: #175c8a;
+  --color-amber-300: #96660f;
+  --color-orange-300: #b0602b;
+  --color-orange-400: #a35626;
+  --color-red-300: #b03737;
+  --color-red-400: #a03030;
+}
+
+/* ---------------------------------------------------------------------------
+   MIDNIGHT — the deep indigo dark this app shipped with.
+
+   No palette-inversion section: the zinc ramp and white/black keep Tailwind's
+   own values, which is exactly what the components were written against.
+   -------------------------------------------------------------------------- */
+[data-theme="midnight"] {
+  color-scheme: dark;
+  /* Headings stay on Inter here — a serif over the deep indigo reads
+     dressier than this theme wants to be. */
+  --font-display: var(--font-sans);
+
+  --color-bg: #0b0b14;
+  --app-text: #f0f0f5;
+
+  --color-surface: rgba(255, 255, 255, 0.055);
+  --color-surface-hover: rgba(255, 255, 255, 0.09);
+  --color-border: rgba(255, 255, 255, 0.1);
+
+  --color-accent-todo: #7c8cff;
+  --color-accent-progress: #ff9f6b;
+  --color-accent-done: #4ee1a0;
+
+  --app-panel-bg: rgba(18, 18, 24, 0.82);
+  --app-panel-border: rgba(255, 255, 255, 0.12);
+  --app-glass-inset: rgba(255, 255, 255, 0.06);
+  --app-glass-shadow: rgba(0, 0, 0, 0.35);
+  --app-panel-shadow: rgba(0, 0, 0, 0.5);
+
+  --app-scrim: rgba(0, 0, 0, 0.5);
+  --app-select-bg: #17171d;
+  --app-scrollbar: rgba(255, 255, 255, 0.12);
+  --app-scrollbar-hover: rgba(255, 255, 255, 0.2);
+
+  --app-theme-color: #0b0b14;
+
+  --ambient-1: #7c8cff;
+  --ambient-2: #ff7ac8;
+  --ambient-3: #4ee1a0;
+  --ambient-4: #ff9f6b;
+  --ambient-5: #6b8cff;
+  --ambient-alpha: 0.3;
+  --ambient-grain: 0;
+  /* The two faintest text tiers, lifted off Tailwind's defaults. `text-zinc-600`
+     is the app's hint/label tier (29 uses: "— optional", counts, empty states)
+     and Tailwind's value lands at 2.3:1 on this background — legible only if you
+     already know what it says. These are tuned to clear ~3.5:1 for the faintest
+     tier and ~4.5:1 for the one above it, measured against the CARD, which is
+     the lighter of the two surfaces text sits on. */
+  --color-zinc-500: #83838f;
+  --color-zinc-600: #6f6f7b;
+
+}
+
+/* ---------------------------------------------------------------------------
+   AURORA — dark, but saturated. For when midnight feels too grey.
+   -------------------------------------------------------------------------- */
+[data-theme="aurora"] {
+  color-scheme: dark;
+  --font-display: var(--font-sans);
+
+  --color-bg: #070912;
+  --app-text: #eef0ff;
+
+  --color-surface: rgba(150, 170, 255, 0.075);
+  --color-surface-hover: rgba(150, 170, 255, 0.12);
+  --color-border: rgba(170, 190, 255, 0.14);
+
+  --color-accent-todo: #8b7cff;
+  --color-accent-progress: #ff7ab6;
+  --color-accent-done: #38e8c8;
+
+  --app-panel-bg: rgba(13, 16, 32, 0.86);
+  --app-panel-border: rgba(170, 190, 255, 0.18);
+  --app-glass-inset: rgba(190, 205, 255, 0.09);
+  --app-glass-shadow: rgba(2, 3, 12, 0.5);
+  --app-panel-shadow: rgba(2, 3, 12, 0.65);
+
+  --app-scrim: rgba(2, 3, 12, 0.58);
+  --app-select-bg: #10132a;
+  --app-scrollbar: rgba(170, 190, 255, 0.18);
+  --app-scrollbar-hover: rgba(170, 190, 255, 0.3);
+
+  --app-theme-color: #070912;
+
+  --ambient-1: #8b5cf6;
+  --ambient-2: #ec4899;
+  --ambient-3: #22d3ee;
+  --ambient-4: #38e8c8;
+  --ambient-5: #6366f1;
+  --ambient-alpha: 0.42;
+  --ambient-grain: 0;
+  /* The two faintest text tiers, lifted off Tailwind's defaults. `text-zinc-600`
+     is the app's hint/label tier (29 uses: "— optional", counts, empty states)
+     and Tailwind's value lands at 2.3:1 on this background — legible only if you
+     already know what it says. These are tuned to clear ~3.5:1 for the faintest
+     tier and ~4.5:1 for the one above it, measured against the CARD, which is
+     the lighter of the two surfaces text sits on. */
+  --color-zinc-500: #8388a2;
+  --color-zinc-600: #6f7490;
+
+}
+
+/* ---------------------------------------------------------------------------
+   DAYBREAK — light and cool, for bright rooms and daylight screens.
+   -------------------------------------------------------------------------- */
+[data-theme="daybreak"] {
+  color-scheme: light;
+  --font-display: var(--font-sans);
+
+  --color-bg: #f1f5fb;
+  --app-text: #1f2735;
+
+  --color-surface: rgba(255, 255, 255, 0.78);
+  --color-surface-hover: rgba(255, 255, 255, 0.95);
+  --color-border: rgba(35, 55, 90, 0.11);
+
+  --color-accent-todo: #4f63d2;
+  --color-accent-progress: #e07a3f;
+  --color-accent-done: #1e9e77;
+
+  --app-panel-bg: rgba(252, 253, 255, 0.94);
+  --app-panel-border: rgba(35, 55, 90, 0.14);
+  --app-glass-inset: rgba(255, 255, 255, 0.95);
+  --app-glass-shadow: rgba(35, 55, 90, 0.1);
+  --app-panel-shadow: rgba(35, 55, 90, 0.2);
+
+  --app-scrim: rgba(20, 30, 48, 0.38);
+  --app-select-bg: #fbfcff;
+  --app-scrollbar: rgba(35, 55, 90, 0.2);
+  --app-scrollbar-hover: rgba(35, 55, 90, 0.34);
+
+  --app-theme-color: #f1f5fb;
+
+  --ambient-1: #7aa7f0;
+  --ambient-2: #67c9d8;
+  --ambient-3: #a99af0;
+  --ambient-4: #7fd1a8;
+  --ambient-5: #f0a97a;
+  --ambient-alpha: 0.38;
+  --ambient-grain: 0.035;
+
+  /* ---- palette inversion (light theme) ---- */
+  --color-white: #1b2230;
+  --color-black: #ffffff;
+
+  --color-zinc-100: #161c28;
+  --color-zinc-200: #202836;
+  --color-zinc-300: #313b4d;
+  --color-zinc-400: #4d5768;
+  --color-zinc-500: #656f81;
+  --color-zinc-600: #7b8597;
+  --color-zinc-700: #b2bac7;
+
+  --color-indigo-200: #3f4fc0;
+  --color-indigo-300: #3a49b6;
+  --color-indigo-400: #3442a6;
+  --color-rose-200: #ad3350;
+  --color-rose-300: #a72c47;
+  --color-rose-400: #982740;
+  --color-rose-500: #8a2138;
+  --color-emerald-300: #157a58;
+  --color-emerald-400: #126e4f;
+  --color-emerald-500: #106245;
+  --color-sky-200: #12699f;
+  --color-sky-300: #106091;
+  --color-sky-400: #0d5682;
+  --color-amber-300: #8d6210;
+  --color-orange-300: #a95c26;
+  --color-orange-400: #9c5222;
+  --color-red-300: #ab3333;
+  --color-red-400: #9b2d2d;
+}

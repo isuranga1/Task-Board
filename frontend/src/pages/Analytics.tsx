@@ -15,10 +15,13 @@ import { api } from "../api/client";
 import { LookBack } from "../components/review/LookBack";
 import type { AnalyticsSummary, Section } from "../types";
 
+// The same three column accents the board uses, so a bar and its column can
+// never disagree about what "done" looks like. SVG `fill` resolves var()
+// normally, which is what lets these follow the theme.
 const STATUS_COLORS: Record<string, string> = {
-  todo: "#7c8cff",
-  in_progress: "#ff9f6b",
-  done: "#4ee1a0",
+  todo: "var(--color-accent-todo)",
+  in_progress: "var(--color-accent-progress)",
+  done: "var(--color-accent-done)",
 };
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -28,13 +31,24 @@ const PRIORITY_COLORS: Record<string, string> = {
   urgent: "#fb7185",
 };
 
+// Recharts renders these as inline SVG/style attributes, so they can't be
+// Tailwind classes and can't pick up a theme variable through a class name.
+// Feeding them the CSS variables directly is what keeps the charts in step with
+// the theme switcher instead of staying pinned to the original dark palette.
 const chartTooltipStyle = {
-  background: "rgba(22, 22, 28, 0.9)",
-  border: "1px solid rgba(255,255,255,0.12)",
+  background: "var(--app-panel-bg)",
+  border: "1px solid var(--app-panel-border)",
   borderRadius: 12,
   fontSize: 12,
+  color: "var(--app-text)",
   backdropFilter: "blur(12px)",
 };
+
+// Mid-grey at low alpha instead of white: gridlines drawn in white are simply
+// invisible on the light themes, and this reads correctly on all four.
+const CHART_GRID = "rgba(128,128,128,0.22)";
+const CHART_CURSOR = "rgba(128,128,128,0.13)";
+const CHART_AXIS = "var(--color-zinc-500)";
 
 export function Analytics() {
   const [sections, setSections] = useState<Section[]>([]);
@@ -130,10 +144,10 @@ export function Analytics() {
           <h2 className="text-sm font-semibold text-zinc-200 mb-4">Where things stand</h2>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={statusData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-              <XAxis dataKey="status" stroke="#a1a1aa" fontSize={12} />
-              <YAxis stroke="#a1a1aa" fontSize={12} allowDecimals={false} />
-              <Tooltip contentStyle={chartTooltipStyle} cursor={{ fill: "rgba(255,255,255,0.05)" }} />
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
+              <XAxis dataKey="status" stroke={CHART_AXIS} fontSize={12} />
+              <YAxis stroke={CHART_AXIS} fontSize={12} allowDecimals={false} />
+              <Tooltip contentStyle={chartTooltipStyle} cursor={{ fill: CHART_CURSOR }} />
               <Bar dataKey="count" radius={[8, 8, 0, 0]}>
                 {statusData.map((entry) => (
                   <Cell key={entry.status} fill={STATUS_COLORS[entry.status]} />
@@ -182,11 +196,11 @@ export function Analytics() {
         ) : (
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={trendData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-              <XAxis dataKey="day" stroke="#a1a1aa" fontSize={12} />
-              <YAxis stroke="#a1a1aa" fontSize={12} allowDecimals={false} />
-              <Tooltip contentStyle={chartTooltipStyle} cursor={{ fill: "rgba(255,255,255,0.05)" }} />
-              <Bar dataKey="count" fill="#4ee1a0" radius={[8, 8, 0, 0]} />
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
+              <XAxis dataKey="day" stroke={CHART_AXIS} fontSize={12} />
+              <YAxis stroke={CHART_AXIS} fontSize={12} allowDecimals={false} />
+              <Tooltip contentStyle={chartTooltipStyle} cursor={{ fill: CHART_CURSOR }} />
+              <Bar dataKey="count" fill="var(--color-accent-done)" radius={[8, 8, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         )}

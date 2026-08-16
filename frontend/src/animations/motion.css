@@ -214,8 +214,13 @@
   outline: 1.5px dashed transparent;
   outline-offset: -6px;
 }
+/* Derived from --color-white rather than being literally white, because the
+   light themes swap that for an ink color — a 22%-white dashed outline is
+   completely invisible on cream. (The mask colors below are NOT theme-aware
+   on purpose: a mask only cares about alpha, so #000 there means "opaque",
+   not "black".) */
 .motion-column-over {
-  outline-color: rgba(255, 255, 255, 0.22);
+  outline-color: color-mix(in oklab, var(--color-white) 26%, transparent);
 }
 
 /* The little task-count chip, replayed whenever the number changes. */
@@ -277,7 +282,11 @@
   position: absolute;
   inset: -6px;
   border-radius: 999px;
-  background: radial-gradient(circle, rgba(124, 140, 255, 0.55), transparent 70%);
+  background: radial-gradient(
+    circle,
+    color-mix(in oklab, var(--color-accent-todo) 55%, transparent),
+    transparent 70%
+  );
   filter: blur(6px);
   pointer-events: none;
   animation: motion-orb-glow var(--motion-orb-idle-duration) ease-in-out infinite;

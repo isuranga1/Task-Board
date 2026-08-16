@@ -1,20 +1,51 @@
 @import "tailwindcss";
 
+/* MUST come after Tailwind. `[data-theme="x"]` and `:root` have identical
+   specificity, so source order is the only thing letting a theme override
+   @theme's defaults and Tailwind's own palette variables. See themes.css. */
+@import "./themes/themes.css";
+@import "./themes/ambient.css";
+
 @theme {
   --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
 
-  --color-bg: #0b0b14;
-  --color-surface: rgba(255, 255, 255, 0.055);
-  --color-surface-hover: rgba(255, 255, 255, 0.09);
-  --color-border: rgba(255, 255, 255, 0.1);
+  /* Declared here so Tailwind generates utilities for them (bg-bg, border-border,
+     text-accent-done, …). The VALUES are set per theme in themes.css and are
+     overridden on every load — treat these as fallbacks, not as the palette. */
+  --color-bg: #f7f4ee;
+  --color-surface: rgba(255, 255, 255, 0.72);
+  --color-surface-hover: rgba(255, 255, 255, 0.92);
+  --color-border: rgba(72, 55, 42, 0.11);
 
-  --color-accent-todo: #7c8cff;
-  --color-accent-progress: #ff9f6b;
-  --color-accent-done: #4ee1a0;
+  --color-accent-todo: #5a67d8;
+  --color-accent-progress: #d97757;
+  --color-accent-done: #2f9e6e;
 }
 
-html {
-  color-scheme: dark;
+/* `color-scheme` is set per theme in themes.css — it decides the color of
+   native scrollbars, form controls and the <select> popup, and getting it
+   wrong is what leaves a white dropdown list on a dark page. */
+
+/* Page and panel headings take the theme's display face; everything else stays
+   on Inter. Scoped to h1/h2 on purpose — h3 is a task card's title, which is
+   dense UI text and reads better in the sans.
+
+   Falls back to the sans stack if a theme doesn't name a display face, so a
+   new theme that forgets --font-display degrades to Inter rather than to the
+   browser's default serif. */
+h1,
+h2 {
+  font-family: var(--font-display, var(--font-sans));
+  /* A serif at heading weight benefits from slightly tighter tracking than
+     Inter's defaults, and it costs nothing on the sans themes. */
+  letter-spacing: -0.015em;
+}
+
+/* Inter's default figures are proportional, so any number that updates in
+   place — task counts, the quota countdown, elapsed time — visibly jitters as
+   digits change width. Tabular figures pin them to one advance. */
+body {
+  font-variant-numeric: tabular-nums;
 }
 
 body {
@@ -23,8 +54,12 @@ body {
      last few rems sit under the toolbar. */
   min-height: 100dvh;
   background-color: var(--color-bg);
-  color: #f0f0f5;
+  color: var(--app-text);
   font-family: var(--font-sans);
+  /* Switching theme repaints every surface at once; easing the two properties
+     that carry the page itself stops that reading as a jarring flash. Kept off
+     `color` for text, where a cross-fade just looks like a rendering glitch. */
+  transition: background-color 320ms ease, border-color 320ms ease;
   position: relative;
   overflow-x: hidden;
   /* Stops the grey flash iOS paints over every button/link you touch. */
@@ -83,19 +118,23 @@ body {
   user-select: none;
 }
 
-/* Soft, blurred color wash behind everything — the "wallpaper" a glass UI floats on */
+/* The flat ground the ambient blobs drift over. It used to carry the color wash
+   itself; that job moved to <AmbientBackground /> (themes/ambient.css) so the
+   wash could move and be recolored per theme. This stays as the base fill so
+   the page is never transparent for the frame before React mounts. */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
-  z-index: -1;
-  background:
-    radial-gradient(38rem 30rem at 12% 8%, rgba(124, 140, 255, 0.32), transparent 60%),
-    radial-gradient(34rem 28rem at 88% 18%, rgba(255, 122, 200, 0.22), transparent 60%),
-    radial-gradient(40rem 34rem at 25% 92%, rgba(78, 225, 160, 0.18), transparent 60%),
-    radial-gradient(36rem 30rem at 95% 88%, rgba(255, 159, 107, 0.2), transparent 60%),
-    var(--color-bg);
+  z-index: -2; /* below .ambient-root, which sits at -1 */
   background-color: var(--color-bg);
+}
+
+/* The dimmer behind a modal. A class rather than `bg-black/50` because the
+   light themes redefine --color-black as a near-white ink, which would make
+   that utility paint a pale veil instead of a dark one. See --app-scrim. */
+.app-scrim {
+  background-color: var(--app-scrim);
 }
 
 /* Reusable glass surface — used via className="glass" */
@@ -105,8 +144,9 @@ body::before {
   -webkit-backdrop-filter: blur(24px) saturate(160%);
   border: 1px solid var(--color-border);
   box-shadow:
-    0 1px 1px rgba(255, 255, 255, 0.06) inset,
-    0 8px 30px rgba(0, 0, 0, 0.35);
+    0 1px 1px var(--app-glass-inset) inset,
+    0 8px 30px var(--app-glass-shadow);
+  transition: background-color 320ms ease, border-color 320ms ease;
 }
 
 .glass-hover {
@@ -119,24 +159,22 @@ body::before {
 /* A denser, more opaque glass for surfaces that need to stay readable over
    the colorful background wash — modals and popovers, not cards. */
 .glass-panel {
-  background: rgba(18, 18, 24, 0.82);
+  background: var(--app-panel-bg);
   backdrop-filter: blur(28px) saturate(160%);
   -webkit-backdrop-filter: blur(28px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--app-panel-border);
   box-shadow:
-    0 1px 1px rgba(255, 255, 255, 0.06) inset,
-    0 20px 50px rgba(0, 0, 0, 0.5);
+    0 1px 1px var(--app-glass-inset) inset,
+    0 20px 50px var(--app-panel-shadow);
 }
 
 /* Native <select> dropdown lists are OS-rendered and ignore most CSS on the
-   select itself — this is what keeps the popup list dark instead of the
-   browser's default white. */
-select {
-  color-scheme: dark;
-}
+   select itself. `color-scheme` is inherited from the active theme on :root
+   rather than pinned here, so the popup follows the theme instead of always
+   being dark. */
 select option {
-  background-color: #17171d;
-  color: #f0f0f5;
+  background-color: var(--app-select-bg);
+  color: var(--app-text);
 }
 
 ::-webkit-scrollbar {
@@ -147,13 +185,13 @@ select option {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--app-scrollbar);
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--app-scrollbar-hover);
   background-clip: padding-box;
 }
 

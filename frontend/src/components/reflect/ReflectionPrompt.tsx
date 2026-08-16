@@ -63,7 +63,7 @@ export function ReflectionPrompt({ task, onDismiss, onSave }: ReflectionPromptPr
     // Same bottom-sheet-on-phone, centered-card-from-sm shape as the task
     // detail modal, so finishing a task doesn't introduce a new kind of surface.
     <div
-      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center sm:p-4"
+      className="fixed inset-0 z-[60] flex items-end justify-center app-scrim backdrop-blur-sm sm:items-center sm:p-4"
       onClick={onDismiss}
       role="dialog"
       aria-modal="true"

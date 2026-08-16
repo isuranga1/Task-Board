@@ -62,7 +62,7 @@ export function LinkRow({ link, onChangeLabel, onChangeUrl, onRemove }: LinkRowP
       {expanded && embed && (
         <div className="p-2 pt-0">
           {embed.kind === "youtube" || embed.kind === "vimeo" ? (
-            <div className="aspect-video w-full rounded-lg overflow-hidden bg-black">
+            <div className="aspect-video w-full rounded-lg overflow-hidden bg-[#000]">
               <iframe
                 src={embed.embedUrl}
                 className="w-full h-full"

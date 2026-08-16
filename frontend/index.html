@@ -1,5 +1,16 @@
 <!doctype html>
-<html lang="en">
+<!-- NOTE: never write a literal HTML tag inside a comment in this file. Vite
+     injects scripts by regex-matching the opening head tag, and it matches the
+     first occurrence in the raw text — including one inside a comment. A
+     comment here that spelled that tag out swallowed the React Fast Refresh
+     preamble, and every module then threw "can't detect preamble" and the app
+     rendered nothing at all. -->
+
+<!-- data-theme is set statically so a theme is named before the CSS is parsed
+     and never depends on JavaScript having run. The inline script further down
+     swaps it for the saved one. themes.css deliberately has no `:root`
+     fallback, because that would leak one theme's palette into all the rest. -->
+<html lang="en" data-theme="claude">
   <head>
     <meta charset="UTF-8" />
     <!-- ?v= is a cache-buster. Browsers cache favicons far more aggressively
@@ -24,11 +35,40 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Inter carries the UI; Newsreader is the display face for page and panel
+         headings. One request for both — a second stylesheet reference would
+         cost another round trip to the same host for no benefit. `display=swap`
+         means text paints in the fallback immediately rather than sitting
+         invisible while the webfont loads, which matters most on the Pi over
+         Tailscale. -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,400..600;1,6..72,400&display=swap"
       rel="stylesheet"
     />
     <title>Little steps</title>
+
+    <!-- Applies the saved theme BEFORE first paint. React can't do this: it
+         mounts after the browser has already painted, so the page would flash
+         the default theme for a frame on every single load — very visible
+         going from a cream default to Midnight.
+
+         Contract with src/themes/index.ts: same storage key, and the value is
+         JSON (a quoted string) because usePersistedState writes it with
+         JSON.stringify. Deliberately dependency-free and wrapped in try/catch —
+         it runs before the app does, so it must not be able to break the page,
+         and localStorage throws outright in some private-browsing modes. -->
+    <script>
+      (function () {
+        try {
+          var stored = JSON.parse(localStorage.getItem("ui.theme"));
+          var known = ["claude", "midnight", "aurora", "daybreak"];
+          var theme = known.indexOf(stored) === -1 ? "claude" : stored;
+          document.documentElement.setAttribute("data-theme", theme);
+        } catch (e) {
+          document.documentElement.setAttribute("data-theme", "claude");
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -34,9 +34,13 @@ function Tick({ checked, onChange, label, color, count }: TickProps) {
       <span
         aria-hidden
         className="flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-all"
+        // Unchecked border comes from the theme rather than a fixed white:
+        // a 25%-white outline is invisible against the light themes.
         style={{
-          backgroundColor: checked ? color ?? "#7c8cff" : "transparent",
-          borderColor: checked ? color ?? "#7c8cff" : "rgba(255,255,255,0.25)",
+          backgroundColor: checked ? color ?? "var(--color-accent-todo)" : "transparent",
+          borderColor: checked
+            ? color ?? "var(--color-accent-todo)"
+            : "color-mix(in oklab, var(--color-white) 30%, transparent)",
         }}
       >
         {checked && <Check size={11} strokeWidth={3} className="text-black/80" />}

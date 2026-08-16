@@ -233,7 +233,7 @@ export function TaskDetailModal({
       // width, rounded only along the top. From sm it's the centered card it
       // has always been. dvh rather than vh so Safari's toolbar doesn't eat
       // the footer with the Save button in it.
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center sm:p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center app-scrim backdrop-blur-sm sm:items-center sm:p-4"
       onClick={onClose}
     >
       <div
