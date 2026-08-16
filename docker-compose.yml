@@ -52,7 +52,12 @@ services:
     volumes:
       - uploads:/app/uploads
     ports:
-      - "8000:8000"
+      # Loopback-only. The frontend container reaches the API over the compose
+      # network (http://backend:8000), not through this mapping — this exists
+      # solely so you can curl /health or open /docs while SSH'd into the Pi.
+      # Binding it to 0.0.0.0 would republish the whole API over plain HTTP on
+      # the tailnet, next to the HTTPS one, which defeats the point.
+      - "127.0.0.1:8000:8000"
 
   frontend:
     build:
@@ -63,7 +68,10 @@ services:
     depends_on:
       - backend
     ports:
-      - "80:80"
+      # Also loopback-only: `tailscale serve` is what listens on the tailnet
+      # and terminates TLS, then forwards here. Nothing should reach the app
+      # over unencrypted HTTP. See DEPLOY.md §4.1.
+      - "127.0.0.1:80:80"
 
 volumes:
   pgdata:

@@ -7,9 +7,10 @@ from any device on your tailnet, with a one-command way to push updates.
 ## 0. What you'll end up with
 
 - `docker compose up -d` on the Pi runs everything.
-- The frontend is reachable at `http://<pi-tailscale-address>` from any
-  device signed into the same tailnet — no port forwarding, no public
-  exposure, nothing to open on your router.
+- The app is reachable over **HTTPS** at `https://<pi-magicdns-name>` from any
+  device signed into the same tailnet — a real, publicly-trusted, auto-renewing
+  certificate, with no port forwarding, no public exposure, and nothing to open
+  on your router (§4.1).
 - `./deploy.sh` (or a GitHub Actions push trigger, see §5) pulls your latest
   `main` and redeploys, including any new database migrations.
 - `scripts/backup-db.sh` dumps the database and uploads it to Google Drive
@@ -40,9 +41,14 @@ Note the Pi's Tailscale address once it's up:
 tailscale status   # shows the device's 100.x.y.z IP and its MagicDNS name
 ```
 
-Prefer the **MagicDNS name** (e.g. `raspberrypi.tailxxxxx.ts.net`) over the
-raw `100.x.y.z` IP everywhere below — it doesn't change if the device
-re-registers, so you won't need to rebuild the frontend image later.
+Use the **MagicDNS name** (e.g. `raspberrypi.tailxxxxx.ts.net`), not the raw
+`100.x.y.z` IP, everywhere below. HTTPS makes this mandatory rather than
+merely advisable: the certificate in §4.1 is issued *for that name*, and a
+browser pointed at the bare IP will reject it.
+
+MagicDNS and HTTPS certificates both have to be switched on for your tailnet
+— they're one checkbox each in the [admin console](https://login.tailscale.com/admin/dns),
+under **DNS**. Do that now; §4.1 fails without them.
 
 ## 2. Get the code onto the Pi
 
@@ -61,11 +67,17 @@ cp .env.example .env
 nano .env
 ```
 
-At minimum, set `POSTGRES_PASSWORD` to something real, and set
-`CORS_ORIGINS` / `VITE_API_URL` to your Pi's actual Tailscale address from
-step 1 (both **must** use that address, not `localhost` — the browser on
-your other devices needs to reach it over the tailnet). SMTP settings are
-optional; leave them blank to skip email reminders.
+At minimum, set `POSTGRES_PASSWORD` to something real, and replace
+`raspberrypi.tailxxxxx.ts.net` with your Pi's actual MagicDNS name from step 1
+wherever it appears (`CORS_ORIGINS`, and the Google settings if you use them).
+Keep the scheme as `https://` — that's what §4.1 will be serving.
+
+Leave `VITE_API_URL=/api` alone. The frontend calls the API through its own
+origin, which nginx proxies to the backend; that's what allows a single
+certificate to cover the whole app, and it's what stops the browser blocking
+API calls from an HTTPS page as mixed content.
+
+SMTP settings are optional; leave them blank to skip email reminders.
 
 This root `.env` is **only** for `docker-compose.yml`. It's separate from
 `backend/.env` / `frontend/.env`, which are for running things natively
@@ -88,21 +100,62 @@ docker compose ps
 curl http://localhost:8000/health   # {"status": "ok"}
 ```
 
-From **any other device on your tailnet**, open:
+Both containers deliberately bind to **loopback only** (`127.0.0.1:80` and
+`127.0.0.1:8000` in `docker-compose.yml`), so at this point nothing is
+reachable from your other devices yet. That's intentional: the next step is
+what puts the app on the tailnet, and it does so over HTTPS only. There is no
+window where the app is served unencrypted.
+
+## 4.1 HTTPS
+
+Tailscale can issue and renew a genuine certificate for your Pi's
+`.ts.net` name from Let's Encrypt, and terminate TLS in front of the app.
+One command, on the Pi:
+
+```bash
+sudo tailscale serve --bg 80
+```
+
+That reads: *listen on HTTPS :443 on the tailnet, forward to 127.0.0.1:80* —
+the frontend container. Check it took:
+
+```bash
+tailscale serve status
+```
+
+Then, from any device on your tailnet:
 
 ```
-http://<pi-tailscale-address>
+https://raspberrypi.tailxxxxx.ts.net
 ```
 
-That's the Tailscale connection — nothing else to configure. Tailscale
-already puts every device on the tailnet on the same private network, so
-any port a container binds on the Pi is reachable from your laptop/phone
-the moment both are signed into the same tailnet.
+A real padlock, no warning, no exception to click. The certificate is issued
+to that MagicDNS name and **renews itself** — there's no cron job to add and
+nothing that expires in 90 days and takes the app down with it.
 
-*(Optional: if you want a single clean HTTPS URL instead of `http://` +
-remembering port 8000 exists, look at `tailscale serve` — it can front the
-frontend container with a proper cert on your tailnet's `.ts.net` domain.
-Not required for basic access.)*
+Some things worth knowing about this arrangement:
+
+- **The name is the certificate.** `https://100.x.y.z` will not work — the
+  cert is for the MagicDNS name only. Use the name.
+- **It's still private.** `serve` publishes to your tailnet and nowhere else;
+  the certificate is publicly trusted, but the site is not publicly reachable.
+  Your router configuration is untouched. (`tailscale funnel` is the command
+  that *would* expose it to the internet — this app has no login, so don't
+  run it without adding authentication first.)
+- **The cert is fetched on first request**, so the very first load after
+  running the command can take a few seconds longer than usual.
+- **It survives reboots** — `--bg` persists the config; you don't re-run it
+  after a restart or a `./deploy.sh`.
+
+To undo it entirely: `sudo tailscale serve --bg off`.
+
+### Optional: identity-based access
+
+Because traffic now passes through Tailscale, you can put access control in
+front of an app that has no login of its own. Tailnet ACLs can restrict which
+devices reach port 443 on the Pi at all, and if you ever enable Funnel,
+`tailscale serve` can require Tailscale identity. Worth a look if other people
+are on your tailnet; unnecessary if it's only your own devices.
 
 ## 5. Pushing changes
 
@@ -315,8 +368,12 @@ In the [Google Cloud Console](https://console.cloud.google.com):
    - Under **Authorized redirect URIs**, add the callback URL. This has to
      match `GOOGLE_REDIRECT_URI` byte for byte — scheme, host, port, path:
      ```
-     http://raspberrypi.tailxxxxx.ts.net:8000/gcal/callback
+     https://raspberrypi.tailxxxxx.ts.net/api/gcal/callback
      ```
+     Note the `/api` prefix and the absence of `:8000`: Google redirects the
+     *browser* here, so the URL has to be the one the browser can reach —
+     through nginx's proxy on the public HTTPS origin, not the backend's
+     container-internal port.
      Add `http://localhost:8000/gcal/callback` too if you also run the app
      natively on your dev machine; a client can hold several redirect URIs.
 5. Copy the **Client ID** and **Client secret**.
@@ -328,13 +385,13 @@ In the root `.env` (the one `docker-compose.yml` reads):
 ```bash
 GOOGLE_CLIENT_ID=<client id>.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=<client secret>
-GOOGLE_REDIRECT_URI=http://raspberrypi.tailxxxxx.ts.net:8000/gcal/callback
-FRONTEND_URL=http://raspberrypi.tailxxxxx.ts.net
+GOOGLE_REDIRECT_URI=https://raspberrypi.tailxxxxx.ts.net/api/gcal/callback
+FRONTEND_URL=https://raspberrypi.tailxxxxx.ts.net
 ```
 
 `FRONTEND_URL` is where the browser gets sent back to after you consent — the
-**frontend's** address (port 80), not the API's. If you leave it blank it falls
-back to the first entry in `CORS_ORIGINS`.
+app's own HTTPS origin, without the `/api` prefix. If you leave it blank it
+falls back to the first entry in `CORS_ORIGINS`.
 
 These are read by the backend at startup, so a plain restart picks them up —
 no image rebuild needed (unlike `VITE_API_URL`, which is baked in at build time):
@@ -458,20 +515,50 @@ first — a thin, generic review is usually the model, not your week.
   RUN apt-get update && apt-get install -y --no-install-recommends \
       build-essential libpq-dev && rm -rf /var/lib/apt/lists/*
   ```
-- **CORS errors in the browser console** — `CORS_ORIGINS` in `.env` must be
-  a JSON array containing the *exact* origin the frontend is served from
-  (scheme + host, no trailing slash), e.g.
-  `CORS_ORIGINS=["http://raspberrypi.tailxxxxx.ts.net"]`.
+- **The site won't load at all from another device** — expected until
+  §4.1 is done; the containers bind to loopback on purpose. Check
+  `tailscale serve status` on the Pi. Also confirm you're using `https://`
+  and the MagicDNS name, not `http://` or the `100.x.y.z` IP.
+- **`tailscale serve --bg 80` errors on the flags** — that shorthand needs
+  Tailscale 1.60 or newer. Either upgrade (`sudo tailscale update`), or use
+  the older, longer form, which does the same thing:
+  `sudo tailscale serve https / http://127.0.0.1:80`.
+- **Certificate error, or `serve` complains it can't get a cert** — HTTPS
+  certificates and MagicDNS are per-tailnet switches in the
+  [admin console](https://login.tailscale.com/admin/dns) → **DNS**. Both must
+  be on (§1).
+- **"Blocked loading mixed active content" / API calls fail only over
+  HTTPS** — something is calling an `http://` URL from the HTTPS page.
+  `VITE_API_URL` should be exactly `/api`; if an absolute `http://…:8000`
+  value is still baked into the image, rebuild the frontend (see below).
+- **CORS errors in the browser console** — shouldn't happen now that the API
+  is same-origin behind `/api`. If you see one, something is still calling the
+  API by absolute URL (see the mixed-content entry above). Otherwise,
+  `CORS_ORIGINS` must be a JSON array containing the *exact* origin the
+  frontend is served from (scheme + host, no trailing slash), e.g.
+  `CORS_ORIGINS=["https://raspberrypi.tailxxxxx.ts.net"]`.
+- **404s from `/api/...`, or the API responding on the wrong paths** — the
+  trailing slash on `proxy_pass http://backend:8000/;` in
+  `frontend/nginx.conf` is what strips the `/api` prefix. Removing it makes
+  the backend receive `/api/tasks/…`, which matches no route.
 - **Frontend calls are hitting the wrong backend / `localhost`** —
   `VITE_API_URL` is baked in at image build time. Changing `.env` alone
   does nothing until you rebuild: `docker compose up -d --build frontend`.
+- **Uploads over ~1MB fail with an nginx HTML error** — `client_max_body_size`
+  in `frontend/nginx.conf` (30m) has to stay above the backend's
+  `MAX_UPLOAD_SIZE_MB` (25), or nginx rejects the request before the API can
+  return its own readable error.
 - **Uploaded attachments "disappear" after a redeploy** — make sure you
   didn't remove the `uploads` named volume (`docker compose down -v` would
   do that — plain `docker compose down` / `deploy.sh` never do).
 - **Google says `redirect_uri_mismatch`** — `GOOGLE_REDIRECT_URI` in `.env`
   and the URI on the OAuth client have to be *identical* strings. Common
-  mismatches: `http` vs `https`, a missing `:8000`, a Tailscale IP in one and
-  the MagicDNS name in the other, or a trailing slash.
+  mismatches: `http` vs `https`, a leftover `:8000`, a missing `/api` prefix,
+  a Tailscale IP in one and the MagicDNS name in the other, or a trailing
+  slash. If this worked before HTTPS, it's almost certainly one of the first
+  three — the correct value is now
+  `https://<magicdns-name>/api/gcal/callback`, and it has to be updated in
+  **both** places.
 - **Calendar page says "Not set up on the server"** — the backend booted
   without `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`. Check they're in the
   **root** `.env` (not `backend/.env`, which Docker doesn't read) and restart
